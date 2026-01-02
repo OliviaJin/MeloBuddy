@@ -17,7 +17,10 @@ import {
   Sparkles,
   Music,
   Hash,
+  MessageCircle,
+  X,
 } from 'lucide-react'
+import AIChatPage from '@/app/ai-chat/page'
 import { playNote, playSuccess, playCombo, playSkip, playComplete, initAudio } from '@/lib/audio'
 
 // 弦名映射
@@ -531,6 +534,9 @@ export default function PracticePage() {
   // 乐谱显示模式: 'staff' = 五线谱, 'numbered' = 简谱
   const [notationMode, setNotationMode] = useState<'staff' | 'numbered'>('staff')
 
+  // AI 聊天弹窗状态
+  const [showAIChat, setShowAIChat] = useState(false)
+
   // 初始化音频
   useEffect(() => {
     initAudio()
@@ -808,6 +814,68 @@ export default function PracticePage() {
             onReplay={handleRestartPractice}
             onHome={() => router.push('/')}
           />
+        )}
+      </AnimatePresence>
+
+      {/* 问喵Do 悬浮按钮 */}
+      {!showComplete && (
+        <motion.button
+          onClick={() => setShowAIChat(true)}
+          className="fixed right-4 bottom-28 w-14 h-14 bg-gradient-primary rounded-full shadow-lg flex items-center justify-center text-white z-30"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.5, type: 'spring' }}
+        >
+          <div className="relative">
+            <MessageCircle className="w-6 h-6" />
+            <span className="absolute -top-1 -right-1 text-xs">😸</span>
+          </div>
+        </motion.button>
+      )}
+
+      {/* AI 聊天弹窗 */}
+      <AnimatePresence>
+        {showAIChat && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowAIChat(false)}
+          >
+            <motion.div
+              className="bg-white w-full max-w-[430px] rounded-t-3xl overflow-hidden"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 关闭按钮 */}
+              <div className="absolute top-4 right-4 z-10">
+                <button
+                  onClick={() => setShowAIChat(false)}
+                  className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              {/* AI 聊天组件 */}
+              <AIChatPage
+                isModal={true}
+                context={{
+                  songName: song.name,
+                  composer: song.composer,
+                  difficulty: song.difficulty,
+                  category: song.category,
+                }}
+                onClose={() => setShowAIChat(false)}
+              />
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
