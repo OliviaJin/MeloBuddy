@@ -1,65 +1,358 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useGameStore } from '@/stores'
+import { songs, getSongById } from '@/data'
+import { Music, Play, Flame, Star, ChevronRight } from 'lucide-react'
+import { motion } from 'framer-motion'
+import Link from 'next/link'
+import { useMemo } from 'react'
+
+// 根据时间获取问候语
+function getGreeting(): { text: string; tip: string } {
+  const hour = new Date().getHours()
+
+  if (hour >= 5 && hour < 9) {
+    return {
+      text: '早上好！',
+      tip: '早起练琴，一天好心情~',
+    }
+  } else if (hour >= 9 && hour < 12) {
+    return {
+      text: '上午好！',
+      tip: '精神饱满的时候最适合练琴！',
+    }
+  } else if (hour >= 12 && hour < 14) {
+    return {
+      text: '中午好！',
+      tip: '午休后练习效果更佳哦~',
+    }
+  } else if (hour >= 14 && hour < 17) {
+    return {
+      text: '下午好！',
+      tip: '下午茶时间，来首曲子放松下~',
+    }
+  } else if (hour >= 17 && hour < 19) {
+    return {
+      text: '傍晚好！',
+      tip: '晚饭前来一首短曲吧！',
+    }
+  } else if (hour >= 19 && hour < 22) {
+    return {
+      text: '晚上好！',
+      tip: '安静的夜晚，适合沉浸练习~',
+    }
+  } else {
+    return {
+      text: '夜深了~',
+      tip: '注意休息，明天继续加油！',
+    }
+  }
+}
+
+// 喵Do吉祥物组件 - 使用可爱猫咪emoji
+function MascotCat({ mood = 'happy' }: { mood?: 'happy' | 'excited' | 'sleepy' }) {
+  // 根据心情选择不同的猫咪emoji
+  const catEmojis = {
+    happy: '😺',      // 开心猫咪
+    excited: '😻',    // 兴奋/心动猫咪
+    sleepy: '😸',     // 眯眼微笑猫咪
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <motion.div
+      className="relative"
+      animate={{ y: [0, -6, 0] }}
+      transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+    >
+      <div className="relative">
+        {/* 猫咪主体 */}
+        <motion.span
+          className="text-6xl block"
+          animate={{ rotate: [0, 5, -5, 0] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          {catEmojis[mood]}
+        </motion.span>
+        {/* 小提琴装饰 */}
+        <motion.span
+          className="absolute -right-3 -bottom-1 text-2xl"
+          animate={{ rotate: [0, 10, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          🎻
+        </motion.span>
+      </div>
+    </motion.div>
+  )
+}
+
+export default function HomePage() {
+  const {
+    streakDays,
+    todayPracticeCount,
+    todayXP,
+    completedSongs,
+    recentPractice,
+    level,
+  } = useGameStore()
+
+  const greeting = useMemo(() => getGreeting(), [])
+  const hour = new Date().getHours()
+
+  // 吉祥物心情
+  const mascotMood = hour >= 22 || hour < 5 ? 'sleepy' : streakDays >= 3 ? 'excited' : 'happy'
+
+  // 推荐曲目（未完成的最简单曲目）
+  const recommendedSong = useMemo(() => {
+    return songs
+      .filter((song) => !completedSongs.includes(song.id) && song.requiredLevel <= level)
+      .sort((a, b) => a.difficulty - b.difficulty)[0] || songs[0]
+  }, [completedSongs, level])
+
+  // 最近练习的曲目（去重，取最近3首）
+  const recentSongs = useMemo(() => {
+    const uniqueSongIds = [...new Set(recentPractice.map((r) => r.songId))]
+    return uniqueSongIds
+      .slice(0, 3)
+      .map((id) => getSongById(id))
+      .filter(Boolean)
+  }, [recentPractice])
+
+  // 今日目标（3首）
+  const dailyGoal = 3
+  const progressPercent = Math.min((todayPracticeCount / dailyGoal) * 100, 100)
+
+  // 是否有练习记录
+  const hasPracticed = recentPractice.length > 0
+
+  return (
+    <div className="p-4 space-y-5">
+      {/* 欢迎区域 */}
+      <motion.div
+        className="bg-gradient-to-br from-primary-500 via-primary-600 to-secondary-500 rounded-3xl p-5 text-white shadow-lg overflow-hidden relative"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        {/* 背景装饰 */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+
+        <div className="flex items-start justify-between relative z-10">
+          <div className="flex-1">
+            <motion.h1
+              className="text-2xl font-bold mb-1"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              {greeting.text}
+            </motion.h1>
+            <motion.p
+              className="text-white/80 text-sm mb-3"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+              {greeting.tip}
+            </motion.p>
+
+            {/* 今日统计小标签 */}
+            <motion.div
+              className="flex gap-2"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              {streakDays > 0 && (
+                <div className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1.5">
+                  <Flame className="w-4 h-4 text-orange-300" />
+                  <span className="text-xs font-medium">{streakDays}天连续</span>
+                </div>
+              )}
+            </motion.div>
+          </div>
+
+          {/* 吉祥物 */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3, type: 'spring' }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <MascotCat mood={mascotMood} />
+          </motion.div>
         </div>
-      </main>
+      </motion.div>
+
+      {/* 快速开始卡片 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
+        <Link href={`/practice/${recommendedSong.id}`}>
+          <motion.div
+            className="bg-white rounded-2xl p-4 shadow-cute border border-gray-100 btn-press"
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="flex items-center gap-4">
+              {/* 播放图标 */}
+              <div className="w-14 h-14 bg-gradient-primary rounded-2xl flex items-center justify-center shadow-md">
+                <Play className="w-7 h-7 text-white" fill="white" />
+              </div>
+
+              {/* 信息 */}
+              <div className="flex-1">
+                <p className="text-xs text-primary-600 font-medium mb-0.5">
+                  {hasPracticed ? '继续练习' : '开始今日练习'}
+                </p>
+                <h3 className="font-bold text-gray-800">{recommendedSong.name}</h3>
+                <p className="text-sm text-gray-500">{recommendedSong.composer}</p>
+              </div>
+
+              {/* XP */}
+              <div className="text-right">
+                <div className="flex gap-0.5 justify-end mb-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-3 h-3 ${
+                        i < recommendedSong.difficulty
+                          ? 'text-yellow-400 fill-yellow-400'
+                          : 'text-gray-200'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-primary-600 font-bold">
+                  +{recommendedSong.xpReward} XP
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        </Link>
+      </motion.div>
+
+      {/* 今日进度 */}
+      <motion.div
+        className="bg-white rounded-2xl p-4 shadow-cute border border-gray-100"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold text-gray-800">今日进度</h2>
+          <span className="text-xs text-gray-500">
+            目标: {dailyGoal}首
+          </span>
+        </div>
+
+        {/* 进度条 */}
+        <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-3">
+          <motion.div
+            className="h-full bg-gradient-primary rounded-full"
+            initial={{ width: 0 }}
+            animate={{ width: `${progressPercent}%` }}
+            transition={{ delay: 0.5, duration: 0.8, ease: 'easeOut' }}
+          />
+        </div>
+
+        {/* 统计数据 */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-pastel-blue rounded-xl p-3 text-center">
+            <div className="flex items-center justify-center gap-1 text-blue-600 mb-1">
+              <Music className="w-4 h-4" />
+              <span className="text-xs">已练习</span>
+            </div>
+            <p className="text-xl font-bold text-gray-800">
+              {todayPracticeCount} <span className="text-sm font-normal text-gray-500">首</span>
+            </p>
+          </div>
+          <div className="bg-pastel-yellow rounded-xl p-3 text-center">
+            <div className="flex items-center justify-center gap-1 text-yellow-600 mb-1">
+              <Star className="w-4 h-4" />
+              <span className="text-xs">获得</span>
+            </div>
+            <p className="text-xl font-bold text-gray-800">
+              {todayXP} <span className="text-sm font-normal text-gray-500">XP</span>
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* 最近练习 */}
+      {recentSongs.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-gray-800">最近练习</h2>
+            <Link
+              href="/library"
+              className="text-primary-600 text-sm font-medium flex items-center gap-0.5"
+            >
+              全部曲库
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="space-y-2">
+            {recentSongs.map((song, index) => (
+              <motion.div
+                key={song!.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 + index * 0.1 }}
+              >
+                <Link href={`/practice/${song!.id}`}>
+                  <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center gap-3 btn-press">
+                    <div
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        song!.category === '音阶'
+                          ? 'bg-pastel-blue'
+                          : song!.category === '练习曲'
+                          ? 'bg-pastel-yellow'
+                          : 'bg-pastel-pink'
+                      }`}
+                    >
+                      <Music className="w-5 h-5 text-gray-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-gray-800 text-sm truncate">
+                        {song!.name}
+                      </h3>
+                      <p className="text-xs text-gray-500">{song!.composer}</p>
+                    </div>
+                    <Play className="w-5 h-5 text-primary-500" />
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* 新用户引导 - 如果没有练习记录 */}
+      {recentSongs.length === 0 && (
+        <motion.div
+          className="bg-pastel-purple rounded-2xl p-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">💡</span>
+            <div>
+              <h3 className="font-bold text-primary-800 mb-1">欢迎来到乐伴！</h3>
+              <p className="text-sm text-primary-700">
+                点击上方「开始今日练习」，跟着喵Do一起学小提琴吧！每天练习15分钟，进步看得见~
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
     </div>
-  );
+  )
 }
