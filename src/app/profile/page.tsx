@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useGameStore, getLevelXPRange } from '@/stores'
+import { useLanguageStore } from '@/stores/useLanguageStore'
+import { Language, languageNames, t } from '@/i18n/translations'
 import { songs } from '@/data'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -17,6 +19,7 @@ import {
   Edit3,
   Check,
   X,
+  Globe,
 } from 'lucide-react'
 
 // 可选头像列表
@@ -132,11 +135,13 @@ function ConfirmDialog({
   message,
   onConfirm,
   onCancel,
+  lang,
 }: {
   title: string
   message: string
   onConfirm: () => void
   onCancel: () => void
+  lang: Language
 }) {
   return (
     <motion.div
@@ -158,15 +163,77 @@ function ConfirmDialog({
             onClick={onCancel}
             className="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-gray-700"
           >
-            取消
+            {t('profile.cancel', lang)}
           </button>
           <button
             onClick={onConfirm}
             className="flex-1 py-3 bg-red-500 rounded-xl font-bold text-white"
           >
-            确认重置
+            {t('profile.confirmReset', lang)}
           </button>
         </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// 语言选择弹窗
+function LanguagePicker({
+  currentLang,
+  onSelect,
+  onClose,
+}: {
+  currentLang: Language
+  onSelect: (lang: Language) => void
+  onClose: () => void
+}) {
+  const languages: Language[] = ['zh-CN', 'zh-TW', 'en', 'ko', 'ja', 'es']
+
+  return (
+    <motion.div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="bg-white rounded-2xl p-6 w-full max-w-sm"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">
+          {t('profile.selectLanguage', currentLang)}
+        </h3>
+        <div className="space-y-2">
+          {languages.map((lang) => (
+            <button
+              key={lang}
+              onClick={() => {
+                onSelect(lang)
+                onClose()
+              }}
+              className={`w-full px-4 py-3 rounded-xl flex items-center justify-between transition-all ${
+                lang === currentLang
+                  ? 'bg-primary-100 ring-2 ring-primary-500'
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+            >
+              <span className="font-medium text-gray-800">{languageNames[lang]}</span>
+              {lang === currentLang && (
+                <Check className="w-5 h-5 text-primary-600" />
+              )}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={onClose}
+          className="w-full mt-4 py-2 text-gray-500 font-medium"
+        >
+          {t('profile.cancel', currentLang)}
+        </button>
       </motion.div>
     </motion.div>
   )
@@ -188,10 +255,18 @@ export default function ProfilePage() {
     resetAllProgress,
   } = useGameStore()
 
+  const { language, setLanguage, initLanguage } = useLanguageStore()
+
   const [isEditingName, setIsEditingName] = useState(false)
   const [tempNickname, setTempNickname] = useState(nickname)
   const [showAvatarPicker, setShowAvatarPicker] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false)
+
+  // 初始化语言设置
+  useEffect(() => {
+    initLanguage()
+  }, [initLanguage])
 
   // XP进度
   const { min: currentLevelXp, max: nextLevelXp } = getLevelXPRange(level)
@@ -408,6 +483,22 @@ export default function ProfilePage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
+        {/* 语言设置 */}
+        <button
+          onClick={() => setShowLanguagePicker(true)}
+          className="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100"
+        >
+          <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center text-blue-500">
+            <Globe className="w-5 h-5" />
+          </div>
+          <div className="flex-1 text-left">
+            <span className="text-gray-700">{t('profile.language', language)}</span>
+            <p className="text-xs text-gray-400">{languageNames[language]}</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-gray-400" />
+        </button>
+
+        {/* 重置进度 */}
         <button
           onClick={() => setShowResetConfirm(true)}
           className="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100"
@@ -415,16 +506,17 @@ export default function ProfilePage() {
           <div className="w-9 h-9 bg-red-100 rounded-lg flex items-center justify-center text-red-500">
             <RotateCcw className="w-5 h-5" />
           </div>
-          <span className="flex-1 text-left text-gray-700">重置进度</span>
+          <span className="flex-1 text-left text-gray-700">{t('profile.resetProgress', language)}</span>
           <ChevronRight className="w-5 h-5 text-gray-400" />
         </button>
 
+        {/* 关于 */}
         <div className="w-full flex items-center gap-4 px-4 py-3">
           <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600">
             <Info className="w-5 h-5" />
           </div>
           <div className="flex-1">
-            <span className="text-gray-700">关于App</span>
+            <span className="text-gray-700">{t('profile.aboutApp', language)}</span>
             <p className="text-xs text-gray-400">乐伴 MeloBuddy v1.0.0</p>
           </div>
         </div>
@@ -441,14 +533,26 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
+      {/* 语言选择弹窗 */}
+      <AnimatePresence>
+        {showLanguagePicker && (
+          <LanguagePicker
+            currentLang={language}
+            onSelect={setLanguage}
+            onClose={() => setShowLanguagePicker(false)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* 重置确认弹窗 */}
       <AnimatePresence>
         {showResetConfirm && (
           <ConfirmDialog
-            title="重置进度"
-            message="确定要重置所有进度吗？这将清除你的所有XP、等级、成就和练习记录。此操作无法撤销。"
+            title={t('profile.resetTitle', language)}
+            message={t('profile.resetMessage', language)}
             onConfirm={handleResetProgress}
             onCancel={() => setShowResetConfirm(false)}
+            lang={language}
           />
         )}
       </AnimatePresence>
