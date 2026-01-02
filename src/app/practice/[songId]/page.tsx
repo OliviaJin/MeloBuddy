@@ -19,9 +19,14 @@ import {
   Hash,
   MessageCircle,
   X,
+  Mic,
+  MicOff,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react'
 import AIChatPage from '@/app/ai-chat/page'
 import { playNote, playSuccess, playCombo, playSkip, playComplete, initAudio } from '@/lib/audio'
+import { usePitchDetection } from '@/hooks'
 
 // 弦名映射
 const stringNames = ['', 'E', 'A', 'D', 'G']
@@ -537,10 +542,37 @@ export default function PracticePage() {
   // AI 聊天弹窗状态
   const [showAIChat, setShowAIChat] = useState(false)
 
+  // 音高检测
+  const {
+    isListening,
+    currentPitch,
+    frequency,
+    confidence,
+    cents,
+    centsDiff,
+    isCorrect,
+    error: pitchError,
+    startListening,
+    stopListening,
+    setTargetNote,
+  } = usePitchDetection()
+
+  // 音高检测确认计时器
+  const correctTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const [correctDuration, setCorrectDuration] = useState(0)
+  const REQUIRED_CORRECT_TIME = 500 // 需要保持正确0.5秒
+
   // 初始化音频
   useEffect(() => {
     initAudio()
   }, [])
+
+  // 更新目标音符
+  useEffect(() => {
+    if (song && currentIndex < song.notes.length) {
+      setTargetNote(song.notes[currentIndex].pitch)
+    }
+  }, [currentIndex, song, setTargetNote])
 
   // 完成练习
   const finishPractice = useCallback(() => {
@@ -560,6 +592,77 @@ export default function PracticePage() {
     setPracticeResult({ score, stars, xpEarned: result.xpEarned })
     setShowComplete(true)
   }, [song, completedIndices, songId, completePractice])
+
+  // 自动完成（音高检测成功）
+  const handleAutoComplete = useCallback(() => {
+    if (!song || currentIndex >= song.notes.length) return
+
+    // 清除计时器
+    if (correctTimerRef.current) {
+      clearTimeout(correctTimerRef.current)
+      correctTimerRef.current = null
+    }
+    setCorrectDuration(0)
+
+    // 更新完成状态
+    setCompletedIndices((prev) => new Set(prev).add(currentIndex))
+
+    // 更新连击
+    const newCombo = comboCount + 1
+    setComboCount(newCombo)
+
+    // 显示反馈和播放音效
+    if (newCombo > 0 && newCombo % 5 === 0) {
+      setFeedback({ type: 'combo', combo: newCombo })
+      playCombo()
+    } else {
+      setFeedback({ type: 'success' })
+      playSuccess()
+    }
+
+    // 进入下一个或完成
+    if (currentIndex < song.notes.length - 1) {
+      setCurrentIndex((prev) => prev + 1)
+    } else {
+      stopListening()
+      setTimeout(finishPractice, 500)
+    }
+  }, [song, currentIndex, comboCount, finishPractice, stopListening])
+
+  // 音高正确时的自动确认逻辑
+  useEffect(() => {
+    if (isListening && isCorrect) {
+      // 开始计时
+      if (!correctTimerRef.current) {
+        const startTime = Date.now()
+        const checkTimer = () => {
+          const elapsed = Date.now() - startTime
+          setCorrectDuration(elapsed)
+
+          if (elapsed >= REQUIRED_CORRECT_TIME) {
+            // 达到要求时间，自动确认
+            handleAutoComplete()
+          } else {
+            correctTimerRef.current = setTimeout(checkTimer, 50)
+          }
+        }
+        correctTimerRef.current = setTimeout(checkTimer, 50)
+      }
+    } else {
+      // 不正确，重置计时
+      if (correctTimerRef.current) {
+        clearTimeout(correctTimerRef.current)
+        correctTimerRef.current = null
+      }
+      setCorrectDuration(0)
+    }
+
+    return () => {
+      if (correctTimerRef.current) {
+        clearTimeout(correctTimerRef.current)
+      }
+    }
+  }, [isListening, isCorrect, handleAutoComplete])
 
   // 完成当前音符
   const handleComplete = useCallback(() => {
@@ -619,13 +722,15 @@ export default function PracticePage() {
 
   // 重新练习
   const handleRestartPractice = useCallback(() => {
+    stopListening()
     setCurrentIndex(0)
     setCompletedIndices(new Set())
     setSkippedCount(0)
     setComboCount(0)
     setShowComplete(false)
     setPracticeResult(null)
-  }, [])
+    setCorrectDuration(0)
+  }, [stopListening])
 
   if (!song) {
     return (
@@ -698,6 +803,121 @@ export default function PracticePage() {
             </span>
           </div>
         </motion.div>
+
+        {/* 音高检测显示 */}
+        {isListening && (
+          <motion.div
+            className="bg-white rounded-2xl p-4 shadow-cute"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-gray-500 flex items-center gap-1">
+                <Mic className="w-3 h-3 text-green-500" />
+                正在检测...
+              </p>
+              <div className="flex items-center gap-2">
+                {frequency && (
+                  <span className="text-xs text-gray-400">
+                    {frequency} Hz
+                  </span>
+                )}
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  confidence > 0.9 ? 'bg-green-100 text-green-700' :
+                  confidence > 0.8 ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-gray-100 text-gray-500'
+                }`}>
+                  {Math.round(confidence * 100)}%
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-4">
+              {/* 音高偏差指示 */}
+              <div className="flex flex-col items-center">
+                {currentPitch && centsDiff !== 0 && !isCorrect && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className={`flex items-center gap-1 ${
+                      centsDiff > 0 ? 'text-red-500' : 'text-blue-500'
+                    }`}
+                  >
+                    {centsDiff > 0 ? (
+                      <>
+                        <ChevronUp className="w-6 h-6" />
+                        <span className="text-sm font-medium">偏高 {centsDiff}¢</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-6 h-6" />
+                        <span className="text-sm font-medium">偏低 {Math.abs(centsDiff)}¢</span>
+                      </>
+                    )}
+                  </motion.div>
+                )}
+              </div>
+
+              {/* 检测到的音符 */}
+              <motion.div
+                className={`w-24 h-24 rounded-2xl flex flex-col items-center justify-center ${
+                  isCorrect
+                    ? 'bg-green-100 border-2 border-green-400'
+                    : currentPitch
+                    ? 'bg-gray-100 border-2 border-gray-200'
+                    : 'bg-gray-50 border-2 border-dashed border-gray-200'
+                }`}
+                animate={isCorrect ? {
+                  scale: [1, 1.05, 1],
+                  borderColor: ['#4ade80', '#22c55e', '#4ade80']
+                } : {}}
+                transition={{ duration: 0.5, repeat: isCorrect ? Infinity : 0 }}
+              >
+                {currentPitch ? (
+                  <>
+                    <span className={`text-3xl font-bold ${
+                      isCorrect ? 'text-green-600' : 'text-gray-700'
+                    }`}>
+                      {currentPitch}
+                    </span>
+                    {isCorrect && (
+                      <Check className="w-5 h-5 text-green-500 mt-1" />
+                    )}
+                  </>
+                ) : (
+                  <span className="text-gray-400 text-sm">等待音符...</span>
+                )}
+              </motion.div>
+
+              {/* 正确进度条 */}
+              <div className="flex flex-col items-center">
+                {isCorrect && (
+                  <motion.div
+                    className="w-16"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    <div className="h-2 bg-green-100 rounded-full overflow-hidden">
+                      <motion.div
+                        className="h-full bg-green-500"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(correctDuration / REQUIRED_CORRECT_TIME) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-green-600 text-center mt-1">
+                      保持中...
+                    </p>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+
+            {/* 错误提示 */}
+            {pitchError && (
+              <p className="text-red-500 text-sm text-center mt-2">{pitchError}</p>
+            )}
+          </motion.div>
+        )}
 
         {/* 乐谱显示切换 */}
         <div className="flex items-center justify-between">
@@ -772,14 +992,25 @@ export default function PracticePage() {
               跳过
             </button>
 
-            <motion.button
-              onClick={handleComplete}
-              className="flex-[2] py-4 bg-gradient-primary rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg"
-              whileTap={{ scale: 0.98 }}
-            >
-              <Check className="w-6 h-6" strokeWidth={3} />
-              完成这个音
-            </motion.button>
+            {isListening ? (
+              <motion.button
+                onClick={stopListening}
+                className="flex-[2] py-4 bg-red-500 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg"
+                whileTap={{ scale: 0.98 }}
+              >
+                <MicOff className="w-6 h-6" />
+                停止检测
+              </motion.button>
+            ) : (
+              <motion.button
+                onClick={startListening}
+                className="flex-[2] py-4 bg-gradient-primary rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg"
+                whileTap={{ scale: 0.98 }}
+              >
+                <Mic className="w-6 h-6" />
+                开始检测
+              </motion.button>
+            )}
 
             <button
               onClick={handleReplay}
