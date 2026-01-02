@@ -273,10 +273,35 @@ function NumberedDisplay({
   )
 }
 
-// 小提琴指板组件
+// 小提琴指板组件 - 真实小提琴风格
 function ViolinFingerboard({ currentNote }: { currentNote: Note }) {
-  const strings = [4, 3, 2, 1] // G, D, A, E
-  const positions = [0, 1, 2, 3, 4]
+  // 弦的粗细 (G最粗, E最细)
+  const stringThickness = {
+    4: 'h-1.5', // G弦
+    3: 'h-1',   // D弦
+    2: 'h-0.5', // A弦
+    1: 'h-[2px]', // E弦
+  }
+
+  // 弦的颜色
+  const stringColors = {
+    4: 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600', // G弦 - 银色包裹
+    3: 'bg-gradient-to-r from-gray-400 via-gray-300 to-gray-400',    // D弦 - 铝包裹
+    2: 'bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300',    // A弦 - 铝包裹
+    1: 'bg-gradient-to-r from-gray-200 via-white to-gray-200',       // E弦 - 钢弦
+  }
+
+  const strings = [4, 3, 2, 1] // G, D, A, E (从上到下)
+  const positions = [0, 1, 2, 3, 4] // 空弦, 1指, 2指, 3指, 4指
+
+  // 计算手指在指板上的水平位置 (百分比)
+  const fingerPositions: Record<number, number> = {
+    0: 5,   // 空弦 - 琴头位置
+    1: 25,  // 1指
+    2: 40,  // 2指
+    3: 55,  // 3指
+    4: 70,  // 4指
+  }
 
   return (
     <div className="bg-white rounded-2xl p-4 shadow-cute">
@@ -292,51 +317,127 @@ function ViolinFingerboard({ currentNote }: { currentNote: Note }) {
         </div>
       </div>
 
-      <div className="flex justify-center gap-2">
-        {strings.map((stringNum) => (
-          <div key={stringNum} className="flex flex-col items-center">
-            <span className={`text-xs font-bold mb-2 w-8 h-8 rounded-full flex items-center justify-center ${
-              currentNote.string === stringNum ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'
-            }`}>
-              {stringNames[stringNum]}
-            </span>
+      {/* 小提琴指板 */}
+      <div className="relative">
+        {/* 指板背景 - 木纹效果 */}
+        <div className="relative h-32 rounded-lg overflow-hidden"
+          style={{
+            background: 'linear-gradient(90deg, #2d1810 0%, #4a2c1f 10%, #3d2317 50%, #4a2c1f 90%, #2d1810 100%)',
+          }}
+        >
+          {/* 木纹纹理 */}
+          <div className="absolute inset-0 opacity-20"
+            style={{
+              backgroundImage: `repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.1) 2px,
+                rgba(0,0,0,0.1) 4px
+              )`,
+            }}
+          />
 
-            <div className="flex flex-col gap-1">
-              {positions.map((finger) => {
-                const isActive = currentNote.string === stringNum && currentNote.finger === finger
+          {/* 琴枕 (nut) */}
+          <div className="absolute left-3 top-0 bottom-0 w-2 bg-gradient-to-r from-amber-100 via-amber-50 to-amber-100 rounded-sm shadow-md" />
 
-                return (
-                  <motion.div
-                    key={finger}
-                    className={`w-12 h-10 rounded-lg border-2 flex items-center justify-center text-sm font-bold transition-all ${
-                      isActive
-                        ? 'bg-primary-500 border-primary-600 text-white shadow-lg'
-                        : 'bg-gray-50 border-gray-200 text-gray-400'
-                    }`}
-                    animate={isActive ? {
-                      scale: [1, 1.05, 1],
-                      boxShadow: ['0 0 0 0 rgba(139, 92, 246, 0)', '0 0 0 8px rgba(139, 92, 246, 0.3)', '0 0 0 0 rgba(139, 92, 246, 0)']
-                    } : {}}
-                    transition={{ duration: 1, repeat: isActive ? Infinity : 0 }}
-                  >
-                    {finger === 0 ? '○' : finger}
-                  </motion.div>
-                )
-              })}
-            </div>
-          </div>
-        ))}
+          {/* 把位标记 */}
+          <div className="absolute left-[25%] top-1 bottom-1 w-px bg-amber-900/30" />
+          <div className="absolute left-[40%] top-1 bottom-1 w-px bg-amber-900/30" />
+          <div className="absolute left-[55%] top-1 bottom-1 w-px bg-amber-900/30" />
+          <div className="absolute left-[70%] top-1 bottom-1 w-px bg-amber-900/30" />
+
+          {/* 弦 */}
+          {strings.map((stringNum, index) => {
+            const isActiveString = currentNote.string === stringNum
+            const topPosition = 12 + index * 28 // 计算每根弦的垂直位置
+
+            return (
+              <div
+                key={stringNum}
+                className="absolute left-0 right-0"
+                style={{ top: `${topPosition}px` }}
+              >
+                {/* 弦本体 */}
+                <div
+                  className={`${stringThickness[stringNum as keyof typeof stringThickness]} ${stringColors[stringNum as keyof typeof stringColors]} ${
+                    isActiveString ? 'shadow-lg' : ''
+                  }`}
+                  style={{
+                    boxShadow: isActiveString ? '0 0 8px rgba(139, 92, 246, 0.6)' : 'none',
+                  }}
+                />
+
+                {/* 弦名标签 */}
+                <span className={`absolute -left-1 -top-2 text-[10px] font-bold ${
+                  isActiveString ? 'text-primary-300' : 'text-amber-200/60'
+                }`}>
+                  {stringNames[stringNum]}
+                </span>
+              </div>
+            )
+          })}
+
+          {/* 手指按压位置指示 */}
+          {currentNote.finger > 0 && (
+            <motion.div
+              className="absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 z-10"
+              style={{
+                left: `${fingerPositions[currentNote.finger]}%`,
+                top: `${12 + (4 - currentNote.string) * 28}px`,
+              }}
+              initial={{ scale: 0 }}
+              animate={{
+                scale: [1, 1.1, 1],
+              }}
+              transition={{ duration: 1, repeat: Infinity }}
+            >
+              {/* 发光效果 */}
+              <div className="absolute inset-0 bg-primary-500 rounded-full blur-md opacity-60" />
+              {/* 手指圆点 */}
+              <div className="absolute inset-1 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full shadow-lg flex items-center justify-center">
+                <span className="text-white text-xs font-bold">{currentNote.finger}</span>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 空弦指示 */}
+          {currentNote.finger === 0 && (
+            <motion.div
+              className="absolute w-6 h-6 -translate-x-1/2 -translate-y-1/2 z-10"
+              style={{
+                left: `${fingerPositions[0]}%`,
+                top: `${12 + (4 - currentNote.string) * 28}px`,
+              }}
+              animate={{
+                scale: [1, 1.2, 1],
+                opacity: [0.8, 1, 0.8],
+              }}
+              transition={{ duration: 1, repeat: Infinity }}
+            >
+              <div className="w-full h-full border-2 border-primary-400 rounded-full bg-primary-500/30" />
+            </motion.div>
+          )}
+        </div>
+
+        {/* 把位数字标签 */}
+        <div className="flex justify-between px-2 mt-2">
+          <span className="text-[10px] text-gray-400 w-8 text-center">空弦</span>
+          <span className="text-[10px] text-gray-400 w-8 text-center">1指</span>
+          <span className="text-[10px] text-gray-400 w-8 text-center">2指</span>
+          <span className="text-[10px] text-gray-400 w-8 text-center">3指</span>
+          <span className="text-[10px] text-gray-400 w-8 text-center">4指</span>
+        </div>
       </div>
 
-      <div className="mt-3 flex justify-center gap-2">
-        {strings.map((stringNum) => (
-          <div
-            key={stringNum}
-            className={`h-1 w-12 rounded-full ${
-              currentNote.string === stringNum ? 'bg-primary-400' : 'bg-gray-200'
-            }`}
-          />
-        ))}
+      {/* 提示文字 */}
+      <div className="mt-3 text-center">
+        <p className="text-xs text-gray-500">
+          {currentNote.finger === 0
+            ? `拉 ${stringNames[currentNote.string]} 弦空弦音`
+            : `${currentNote.finger}指按 ${stringNames[currentNote.string]} 弦`
+          }
+        </p>
       </div>
     </div>
   )
