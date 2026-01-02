@@ -4,24 +4,27 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Home, Library, MessageCircle, Trophy, User } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useLanguageStore } from '@/stores/useLanguageStore'
+import { t } from '@/i18n/translations'
 
 interface NavItem {
   id: string
   href: string
   icon: typeof Home
-  label: string
+  labelKey: string
 }
 
 const navItems: NavItem[] = [
-  { id: 'home', href: '/', icon: Home, label: '首页' },
-  { id: 'library', href: '/library', icon: Library, label: '曲库' },
-  { id: 'ai-chat', href: '/ai-chat', icon: MessageCircle, label: '喵Do' },
-  { id: 'achievements', href: '/achievements', icon: Trophy, label: '成就' },
-  { id: 'profile', href: '/profile', icon: User, label: '我的' },
+  { id: 'home', href: '/', icon: Home, labelKey: 'nav.home' },
+  { id: 'library', href: '/library', icon: Library, labelKey: 'nav.library' },
+  { id: 'ai-chat', href: '/ai-chat', icon: MessageCircle, labelKey: 'nav.aiChat' },
+  { id: 'achievements', href: '/achievements', icon: Trophy, labelKey: 'nav.achievements' },
+  { id: 'profile', href: '/profile', icon: User, labelKey: 'nav.profile' },
 ]
 
 export function BottomNav() {
   const pathname = usePathname()
+  const { language } = useLanguageStore()
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/'
@@ -82,7 +85,7 @@ export function BottomNav() {
                         active ? 'text-primary-600' : 'text-gray-400'
                       }`}
                     >
-                      {item.label}
+                      {t(item.labelKey, language)}
                     </span>
                   </motion.div>
                 </Link>

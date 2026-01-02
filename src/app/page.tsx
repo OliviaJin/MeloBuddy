@@ -1,6 +1,8 @@
 'use client'
 
 import { useGameStore } from '@/stores'
+import { useLanguageStore } from '@/stores/useLanguageStore'
+import { Language, t } from '@/i18n/translations'
 import { songs, getSongById } from '@/data'
 import { Music, Play, Flame, Star, ChevronRight } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -8,43 +10,43 @@ import Link from 'next/link'
 import { useMemo } from 'react'
 
 // 根据时间获取问候语
-function getGreeting(): { text: string; tip: string } {
+function getGreeting(lang: Language): { text: string; tip: string } {
   const hour = new Date().getHours()
 
   if (hour >= 5 && hour < 9) {
     return {
-      text: '早上好！',
-      tip: '早起练琴，一天好心情~',
+      text: t('home.greeting.morning', lang),
+      tip: t('home.greeting.morning.tip', lang),
     }
   } else if (hour >= 9 && hour < 12) {
     return {
-      text: '上午好！',
-      tip: '精神饱满的时候最适合练琴！',
+      text: t('home.greeting.forenoon', lang),
+      tip: t('home.greeting.forenoon.tip', lang),
     }
   } else if (hour >= 12 && hour < 14) {
     return {
-      text: '中午好！',
-      tip: '午休后练习效果更佳哦~',
+      text: t('home.greeting.noon', lang),
+      tip: t('home.greeting.noon.tip', lang),
     }
   } else if (hour >= 14 && hour < 17) {
     return {
-      text: '下午好！',
-      tip: '下午茶时间，来首曲子放松下~',
+      text: t('home.greeting.afternoon', lang),
+      tip: t('home.greeting.afternoon.tip', lang),
     }
   } else if (hour >= 17 && hour < 19) {
     return {
-      text: '傍晚好！',
-      tip: '晚饭前来一首短曲吧！',
+      text: t('home.greeting.evening', lang),
+      tip: t('home.greeting.evening.tip', lang),
     }
   } else if (hour >= 19 && hour < 22) {
     return {
-      text: '晚上好！',
-      tip: '安静的夜晚，适合沉浸练习~',
+      text: t('home.greeting.night', lang),
+      tip: t('home.greeting.night.tip', lang),
     }
   } else {
     return {
-      text: '夜深了~',
-      tip: '注意休息，明天继续加油！',
+      text: t('home.greeting.late', lang),
+      tip: t('home.greeting.late.tip', lang),
     }
   }
 }
@@ -96,7 +98,9 @@ export default function HomePage() {
     level,
   } = useGameStore()
 
-  const greeting = useMemo(() => getGreeting(), [])
+  const { language } = useLanguageStore()
+
+  const greeting = useMemo(() => getGreeting(language), [language])
   const hour = new Date().getHours()
 
   // 吉祥物心情
@@ -167,7 +171,7 @@ export default function HomePage() {
               {streakDays > 0 && (
                 <div className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1.5">
                   <Flame className="w-4 h-4 text-orange-300" />
-                  <span className="text-xs font-medium">{streakDays}天连续</span>
+                  <span className="text-xs font-medium">{streakDays}{t('home.streak', language)}</span>
                 </div>
               )}
             </motion.div>
@@ -204,7 +208,7 @@ export default function HomePage() {
               {/* 信息 */}
               <div className="flex-1">
                 <p className="text-xs text-primary-600 font-medium mb-0.5">
-                  {hasPracticed ? '继续练习' : '开始今日练习'}
+                  {hasPracticed ? t('home.continuePractice', language) : t('home.startPractice', language)}
                 </p>
                 <h3 className="font-bold text-gray-800">{recommendedSong.name}</h3>
                 <p className="text-sm text-gray-500">{recommendedSong.composer}</p>
@@ -241,9 +245,9 @@ export default function HomePage() {
         transition={{ duration: 0.5, delay: 0.2 }}
       >
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-bold text-gray-800">今日进度</h2>
+          <h2 className="font-bold text-gray-800">{t('home.todayProgress', language)}</h2>
           <span className="text-xs text-gray-500">
-            目标: {dailyGoal}首
+            {t('home.goal', language)}: {dailyGoal}{t('home.songs', language)}
           </span>
         </div>
 
@@ -262,16 +266,16 @@ export default function HomePage() {
           <div className="bg-pastel-blue rounded-xl p-3 text-center">
             <div className="flex items-center justify-center gap-1 text-blue-600 mb-1">
               <Music className="w-4 h-4" />
-              <span className="text-xs">已练习</span>
+              <span className="text-xs">{t('home.practiced', language)}</span>
             </div>
             <p className="text-xl font-bold text-gray-800">
-              {todayPracticeCount} <span className="text-sm font-normal text-gray-500">首</span>
+              {todayPracticeCount} <span className="text-sm font-normal text-gray-500">{t('home.songs', language)}</span>
             </p>
           </div>
           <div className="bg-pastel-yellow rounded-xl p-3 text-center">
             <div className="flex items-center justify-center gap-1 text-yellow-600 mb-1">
               <Star className="w-4 h-4" />
-              <span className="text-xs">获得</span>
+              <span className="text-xs">{t('home.earned', language)}</span>
             </div>
             <p className="text-xl font-bold text-gray-800">
               {todayXP} <span className="text-sm font-normal text-gray-500">XP</span>
@@ -288,12 +292,12 @@ export default function HomePage() {
           transition={{ duration: 0.5, delay: 0.3 }}
         >
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-gray-800">最近练习</h2>
+            <h2 className="font-bold text-gray-800">{t('home.recentPractice', language)}</h2>
             <Link
               href="/library"
               className="text-primary-600 text-sm font-medium flex items-center gap-0.5"
             >
-              全部曲库
+              {t('home.allLibrary', language)}
               <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
@@ -345,9 +349,9 @@ export default function HomePage() {
           <div className="flex items-start gap-3">
             <span className="text-2xl">💡</span>
             <div>
-              <h3 className="font-bold text-primary-800 mb-1">欢迎来到乐伴！</h3>
+              <h3 className="font-bold text-primary-800 mb-1">{t('home.welcome', language)}</h3>
               <p className="text-sm text-primary-700">
-                点击上方「开始今日练习」，跟着喵Do一起学小提琴吧！每天练习15分钟，进步看得见~
+                {t('home.welcomeTip', language)}
               </p>
             </div>
           </div>

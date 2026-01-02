@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Sparkles } from 'lucide-react'
+import { useLanguageStore } from '@/stores/useLanguageStore'
+import { Language, t } from '@/i18n/translations'
 
 // 消息类型
 interface Message {
@@ -13,13 +15,13 @@ interface Message {
 }
 
 // 快捷问题
-const quickQuestions = [
-  '小提琴怎么调音？',
-  'G弦在哪里？',
-  '初学者应该怎么练习？',
-  '如何拉出好听的声音？',
-  '每天练习多久合适？',
-  '什么是揉弦？',
+const getQuickQuestions = (lang: Language) => [
+  t('aiChat.q1', lang),
+  t('aiChat.q2', lang),
+  t('aiChat.q3', lang),
+  t('aiChat.q4', lang),
+  t('aiChat.q5', lang),
+  t('aiChat.q6', lang),
 ]
 
 // 打字动画组件
@@ -115,13 +117,20 @@ interface AIChatPageProps {
 }
 
 export default function AIChatPage({ context, isModal = false }: AIChatPageProps) {
+  const { language } = useLanguageStore()
+
+  const getWelcomeMessage = useCallback((lang: Language) => {
+    if (context?.songName) {
+      return t('aiChat.welcomeContext', lang, { songName: context.songName })
+    }
+    return t('aiChat.welcome', lang)
+  }, [context?.songName])
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: context
-        ? `你好！我是喵Do~😸\n\n我看到你正在练习「${context.songName}」，有什么问题想问我吗？`
-        : '你好！我是喵Do，你的小提琴学习伙伴！🎻\n\n有什么想问的吗？可以点击下面的快捷问题，或者直接输入你的疑问~',
+      content: getWelcomeMessage(language),
       timestamp: Date.now(),
     },
   ])
@@ -238,7 +247,7 @@ export default function AIChatPage({ context, isModal = false }: AIChatPageProps
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: '喵呜...我暂时遇到了一点问题 😿\n\n请稍后再试，或者换个问题问我吧~',
+        content: t('aiChat.error', language),
         timestamp: Date.now(),
       }
       setMessages((prev) => [...prev, errorMessage])
@@ -271,10 +280,10 @@ export default function AIChatPage({ context, isModal = false }: AIChatPageProps
             😸
           </div>
           <div>
-            <h1 className="font-bold text-gray-800">喵Do老师</h1>
+            <h1 className="font-bold text-gray-800">{t('aiChat.title', language)}</h1>
             <p className="text-xs text-gray-500 flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
-              AI小提琴助手
+              {t('aiChat.subtitle', language)}
             </p>
           </div>
         </div>
@@ -314,9 +323,9 @@ export default function AIChatPage({ context, isModal = false }: AIChatPageProps
       {/* 快捷问题 */}
       {messages.length <= 2 && !isTyping && (
         <div className="bg-white border-t border-gray-100 px-4 py-3">
-          <p className="text-xs text-gray-500 mb-2">快捷问题：</p>
+          <p className="text-xs text-gray-500 mb-2">{t('aiChat.quickQuestions', language)}</p>
           <div className="flex flex-wrap gap-2">
-            {quickQuestions.slice(0, 4).map((question) => (
+            {getQuickQuestions(language).slice(0, 4).map((question) => (
               <button
                 key={question}
                 onClick={() => handleQuickQuestion(question)}
@@ -338,7 +347,7 @@ export default function AIChatPage({ context, isModal = false }: AIChatPageProps
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder="输入你的问题..."
+          placeholder={t('aiChat.inputPlaceholder', language)}
           className="flex-1 bg-gray-100 rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-500/20"
           disabled={isTyping}
         />

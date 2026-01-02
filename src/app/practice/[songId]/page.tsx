@@ -5,6 +5,8 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getSongById, Note, Song } from '@/data'
 import { useGameStore } from '@/stores'
+import { useLanguageStore } from '@/stores/useLanguageStore'
+import { Language, t } from '@/i18n/translations'
 import {
   ArrowLeft,
   Check,
@@ -31,8 +33,11 @@ import { usePitchDetection } from '@/hooks'
 // 弦名映射
 const stringNames = ['', 'E', 'A', 'D', 'G']
 
-// 指法名称
-const fingerLabels = ['空弦', '1指', '2指', '3指', '4指']
+// 指法名称 - 使用翻译
+const getFingerLabel = (finger: number, lang: Language) => {
+  if (finger === 0) return t('practice.openString', lang)
+  return `${finger}${t('practice.finger', lang)}`
+}
 
 // 简谱音符映射
 const pitchToSolfege: Record<string, string> = {
@@ -274,7 +279,7 @@ function NumberedDisplay({
 }
 
 // 小提琴指板组件 - 真实小提琴风格
-function ViolinFingerboard({ currentNote }: { currentNote: Note }) {
+function ViolinFingerboard({ currentNote, language }: { currentNote: Note; language: Language }) {
   // 弦的粗细 (G最粗, E最细)
   const stringThickness = {
     4: 'h-1.5', // G弦
@@ -306,13 +311,13 @@ function ViolinFingerboard({ currentNote }: { currentNote: Note }) {
   return (
     <div className="bg-white rounded-2xl p-4 shadow-cute">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-gray-500">指板位置</p>
+        <p className="text-xs text-gray-500">{t('practice.fingerboard', language)}</p>
         <div className="flex items-center gap-2">
           <span className="text-xs px-2 py-0.5 bg-primary-100 text-primary-700 rounded-full font-medium">
-            {stringNames[currentNote.string]}弦
+            {stringNames[currentNote.string]}{t('practice.string', language)}
           </span>
           <span className="text-xs px-2 py-0.5 bg-secondary-100 text-secondary-700 rounded-full font-medium">
-            {fingerLabels[currentNote.finger]}
+            {getFingerLabel(currentNote.finger, language)}
           </span>
         </div>
       </div>
@@ -422,11 +427,11 @@ function ViolinFingerboard({ currentNote }: { currentNote: Note }) {
 
         {/* 把位数字标签 */}
         <div className="flex justify-between px-2 mt-2">
-          <span className="text-[10px] text-gray-400 w-8 text-center">空弦</span>
-          <span className="text-[10px] text-gray-400 w-8 text-center">1指</span>
-          <span className="text-[10px] text-gray-400 w-8 text-center">2指</span>
-          <span className="text-[10px] text-gray-400 w-8 text-center">3指</span>
-          <span className="text-[10px] text-gray-400 w-8 text-center">4指</span>
+          <span className="text-[10px] text-gray-400 w-8 text-center">{t('practice.openString', language)}</span>
+          <span className="text-[10px] text-gray-400 w-8 text-center">1{t('practice.finger', language)}</span>
+          <span className="text-[10px] text-gray-400 w-8 text-center">2{t('practice.finger', language)}</span>
+          <span className="text-[10px] text-gray-400 w-8 text-center">3{t('practice.finger', language)}</span>
+          <span className="text-[10px] text-gray-400 w-8 text-center">4{t('practice.finger', language)}</span>
         </div>
       </div>
 
@@ -434,8 +439,8 @@ function ViolinFingerboard({ currentNote }: { currentNote: Note }) {
       <div className="mt-3 text-center">
         <p className="text-xs text-gray-500">
           {currentNote.finger === 0
-            ? `拉 ${stringNames[currentNote.string]} 弦空弦音`
-            : `${currentNote.finger}指按 ${stringNames[currentNote.string]} 弦`
+            ? t('practice.playOpenString', language, { string: stringNames[currentNote.string] })
+            : t('practice.pressString', language, { finger: currentNote.finger, string: stringNames[currentNote.string] })
           }
         </p>
       </div>
@@ -448,10 +453,12 @@ function FeedbackMessage({
   type,
   combo,
   onComplete,
+  language,
 }: {
   type: 'success' | 'skip' | 'combo'
   combo?: number
   onComplete: () => void
+  language: Language
 }) {
   useEffect(() => {
     const timer = setTimeout(onComplete, 1200)
@@ -459,9 +466,9 @@ function FeedbackMessage({
   }, [onComplete])
 
   const messages = {
-    success: { text: '很好！', color: 'bg-green-500', icon: '✨' },
-    skip: { text: '没关系，继续加油！', color: 'bg-amber-500', icon: '💪' },
-    combo: { text: `太棒了！连击 x${combo}`, color: 'bg-primary-500', icon: '🔥' },
+    success: { text: t('practice.great', language), color: 'bg-green-500', icon: '✨' },
+    skip: { text: t('practice.keepGoing', language), color: 'bg-amber-500', icon: '💪' },
+    combo: { text: t('practice.amazing', language, { combo: combo || 0 }), color: 'bg-primary-500', icon: '🔥' },
   }
 
   const msg = messages[type]
@@ -487,6 +494,7 @@ function PracticeComplete({
   xpEarned,
   onReplay,
   onHome,
+  language,
 }: {
   song: Song
   score: number
@@ -494,6 +502,7 @@ function PracticeComplete({
   xpEarned: number
   onReplay: () => void
   onHome: () => void
+  language: Language
 }) {
   useEffect(() => {
     playComplete()
@@ -526,7 +535,7 @@ function PracticeComplete({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          练习完成！
+          {t('practice.complete', language)}
         </motion.h2>
         <motion.p
           className="text-gray-500 mb-4"
@@ -567,7 +576,7 @@ function PracticeComplete({
           animate={{ opacity: 1 }}
           transition={{ delay: 0.9 }}
         >
-          完成度 <span className="font-bold text-gray-800">{score}%</span>
+          {t('practice.score', language)} <span className="font-bold text-gray-800">{score}%</span>
         </motion.p>
 
         <motion.div
@@ -578,7 +587,7 @@ function PracticeComplete({
         >
           <div className="flex items-center justify-center gap-2">
             <Sparkles className="w-5 h-5 text-primary-500" />
-            <span className="text-sm text-primary-700">获得经验</span>
+            <span className="text-sm text-primary-700">{t('practice.xpEarned', language)}</span>
           </div>
           <motion.p
             className="text-3xl font-bold text-gradient mt-1"
@@ -601,14 +610,14 @@ function PracticeComplete({
             className="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-gray-700 flex items-center justify-center gap-2"
           >
             <RotateCcw className="w-5 h-5" />
-            再练一次
+            {t('practice.playAgain', language)}
           </button>
           <button
             onClick={onHome}
             className="flex-1 py-3 bg-gradient-primary rounded-xl font-bold text-white flex items-center justify-center gap-2"
           >
             <Home className="w-5 h-5" />
-            返回首页
+            {t('practice.backHome', language)}
           </button>
         </motion.div>
       </motion.div>
@@ -623,6 +632,7 @@ export default function PracticePage() {
   const song = getSongById(songId)
 
   const { completePractice } = useGameStore()
+  const { language } = useLanguageStore()
 
   // 练习状态
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -859,7 +869,7 @@ export default function PracticePage() {
           <div className="text-center flex-1 mx-4">
             <h1 className="font-bold text-gray-800 truncate">{song.name}</h1>
             <p className="text-xs text-gray-500">
-              {currentIndex + 1} / {song.notes.length} 音符
+              {currentIndex + 1} / {song.notes.length} {t('practice.notes', language)}
             </p>
           </div>
 
@@ -885,7 +895,7 @@ export default function PracticePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <p className="text-white/70 text-sm mb-2">当前音符</p>
+          <p className="text-white/70 text-sm mb-2">{t('practice.currentNote', language)}</p>
           <motion.div
             key={currentIndex}
             className="text-6xl font-bold mb-2"
@@ -897,10 +907,10 @@ export default function PracticePage() {
           </motion.div>
           <div className="flex justify-center gap-3">
             <span className="bg-white/20 px-3 py-1 rounded-full text-sm">
-              {stringNames[currentNote.string]}弦
+              {stringNames[currentNote.string]}{t('practice.string', language)}
             </span>
             <span className="bg-white/20 px-3 py-1 rounded-full text-sm">
-              {fingerLabels[currentNote.finger]}
+              {getFingerLabel(currentNote.finger, language)}
             </span>
           </div>
         </motion.div>
@@ -915,7 +925,7 @@ export default function PracticePage() {
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-gray-500 flex items-center gap-1">
                 <Mic className="w-3 h-3 text-green-500" />
-                正在检测...
+                {t('practice.detecting', language)}
               </p>
               <div className="flex items-center gap-2">
                 {frequency && (
@@ -947,12 +957,12 @@ export default function PracticePage() {
                     {centsDiff > 0 ? (
                       <>
                         <ChevronUp className="w-6 h-6" />
-                        <span className="text-sm font-medium">偏高 {centsDiff}¢</span>
+                        <span className="text-sm font-medium">{t('practice.tooHigh', language)} {centsDiff}¢</span>
                       </>
                     ) : (
                       <>
                         <ChevronDown className="w-6 h-6" />
-                        <span className="text-sm font-medium">偏低 {Math.abs(centsDiff)}¢</span>
+                        <span className="text-sm font-medium">{t('practice.tooLow', language)} {Math.abs(centsDiff)}¢</span>
                       </>
                     )}
                   </motion.div>
@@ -986,7 +996,7 @@ export default function PracticePage() {
                     )}
                   </>
                 ) : (
-                  <span className="text-gray-400 text-sm">等待音符...</span>
+                  <span className="text-gray-400 text-sm">{t('practice.waitingNote', language)}</span>
                 )}
               </motion.div>
 
@@ -1006,7 +1016,7 @@ export default function PracticePage() {
                       />
                     </div>
                     <p className="text-xs text-green-600 text-center mt-1">
-                      保持中...
+                      {t('practice.holding', language)}
                     </p>
                   </motion.div>
                 )}
@@ -1022,7 +1032,7 @@ export default function PracticePage() {
 
         {/* 乐谱显示切换 */}
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">乐谱模式</span>
+          <span className="text-sm font-medium text-gray-700">{t('practice.notationMode', language)}</span>
           <div className="flex bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setNotationMode('staff')}
@@ -1033,7 +1043,7 @@ export default function PracticePage() {
               }`}
             >
               <Music className="w-4 h-4" />
-              五线谱
+              {t('practice.staff', language)}
             </button>
             <button
               onClick={() => setNotationMode('numbered')}
@@ -1044,7 +1054,7 @@ export default function PracticePage() {
               }`}
             >
               <Hash className="w-4 h-4" />
-              简谱
+              {t('practice.numbered', language)}
             </button>
           </div>
         </div>
@@ -1065,7 +1075,7 @@ export default function PracticePage() {
         )}
 
         {/* 指板显示 */}
-        <ViolinFingerboard currentNote={currentNote} />
+        <ViolinFingerboard currentNote={currentNote} language={language} />
 
         {/* 连击显示 */}
         {comboCount >= 3 && (
@@ -1075,7 +1085,7 @@ export default function PracticePage() {
             animate={{ opacity: 1, scale: 1 }}
           >
             <span className="text-sm font-bold text-primary-600">
-              🔥 连击 x{comboCount}
+              🔥 {t('practice.combo', language)} x{comboCount}
             </span>
           </motion.div>
         )}
@@ -1090,7 +1100,7 @@ export default function PracticePage() {
               className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold text-gray-600 flex items-center justify-center gap-2"
             >
               <SkipForward className="w-5 h-5" />
-              跳过
+              {t('practice.skip', language)}
             </button>
 
             {isListening ? (
@@ -1100,7 +1110,7 @@ export default function PracticePage() {
                 whileTap={{ scale: 0.98 }}
               >
                 <MicOff className="w-6 h-6" />
-                停止检测
+                {t('practice.stopDetection', language)}
               </motion.button>
             ) : (
               <motion.button
@@ -1109,7 +1119,7 @@ export default function PracticePage() {
                 whileTap={{ scale: 0.98 }}
               >
                 <Mic className="w-6 h-6" />
-                开始检测
+                {t('practice.startDetection', language)}
               </motion.button>
             )}
 
@@ -1118,7 +1128,7 @@ export default function PracticePage() {
               className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold text-gray-600 flex items-center justify-center gap-2"
             >
               <Volume2 className="w-5 h-5" />
-              重听
+              {t('practice.replay', language)}
             </button>
           </div>
         </div>
@@ -1131,6 +1141,7 @@ export default function PracticePage() {
             type={feedback.type}
             combo={feedback.combo}
             onComplete={() => setFeedback(null)}
+            language={language}
           />
         )}
       </AnimatePresence>
@@ -1145,6 +1156,7 @@ export default function PracticePage() {
             xpEarned={practiceResult.xpEarned}
             onReplay={handleRestartPractice}
             onHome={() => router.push('/')}
+            language={language}
           />
         )}
       </AnimatePresence>

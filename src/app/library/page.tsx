@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from 'react'
 import { useGameStore } from '@/stores'
+import { useLanguageStore } from '@/stores/useLanguageStore'
+import { Language, t } from '@/i18n/translations'
 import { songs, Song } from '@/data'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
@@ -10,11 +12,11 @@ import { Music, Star, Clock, Check, Play, Lock } from 'lucide-react'
 // 难度筛选选项
 type DifficultyFilter = 'all' | 1 | 2 | 3
 
-const filterOptions: { value: DifficultyFilter; label: string; stars?: number }[] = [
-  { value: 'all', label: '全部' },
-  { value: 1, label: '入门', stars: 1 },
-  { value: 2, label: '初级', stars: 2 },
-  { value: 3, label: '中级', stars: 3 },
+const filterOptions: { value: DifficultyFilter; labelKey: string; stars?: number }[] = [
+  { value: 'all', labelKey: 'library.all' },
+  { value: 1, labelKey: 'library.beginner', stars: 1 },
+  { value: 2, labelKey: 'library.elementary', stars: 2 },
+  { value: 3, labelKey: 'library.intermediate', stars: 3 },
 ]
 
 // SongCard 组件
@@ -22,10 +24,12 @@ function SongCard({
   song,
   isCompleted,
   isLocked,
+  language,
 }: {
   song: Song
   isCompleted: boolean
   isLocked: boolean
+  language: Language
 }) {
   const categoryColors = {
     音阶: 'bg-blue-50 border-blue-200',
@@ -51,7 +55,7 @@ function SongCard({
           {/* 信息 */}
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-gray-400 truncate">{song.name}</h3>
-            <p className="text-sm text-gray-400">需要等级 {song.requiredLevel} 解锁</p>
+            <p className="text-sm text-gray-400">{t('library.locked', language)}{song.requiredLevel}</p>
           </div>
         </div>
       </div>
@@ -130,6 +134,7 @@ function SongCard({
 
 export default function LibraryPage() {
   const { completedSongs, level } = useGameStore()
+  const { language } = useLanguageStore()
   const [activeFilter, setActiveFilter] = useState<DifficultyFilter>('all')
 
   // 筛选曲目
@@ -153,9 +158,9 @@ export default function LibraryPage() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h1 className="text-2xl font-bold text-gray-800">曲库</h1>
+        <h1 className="text-2xl font-bold text-gray-800">{t('library.title', language)}</h1>
         <p className="text-gray-500 text-sm">
-          已完成 {stats.completed}/{stats.total} 首
+          {t('library.completed', language)} {stats.completed}/{stats.total}
         </p>
       </motion.div>
 
@@ -190,7 +195,7 @@ export default function LibraryPage() {
                 ))}
               </span>
             )}
-            {option.label}
+            {t(option.labelKey, language)}
           </button>
         ))}
       </motion.div>
@@ -215,6 +220,7 @@ export default function LibraryPage() {
                   song={song}
                   isCompleted={isCompleted}
                   isLocked={isLocked}
+                  language={language}
                 />
               </motion.div>
             )
