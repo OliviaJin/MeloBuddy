@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Home, Library, Trophy, User } from 'lucide-react'
+import { Home, Library, MessageCircle, Trophy, User } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 interface NavItem {
@@ -15,6 +15,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: 'home', href: '/', icon: Home, label: '首页' },
   { id: 'library', href: '/library', icon: Library, label: '曲库' },
+  { id: 'ai-chat', href: '/ai-chat', icon: MessageCircle, label: '喵Do' },
   { id: 'achievements', href: '/achievements', icon: Trophy, label: '成就' },
   { id: 'profile', href: '/profile', icon: User, label: '我的' },
 ]
@@ -39,7 +40,7 @@ export function BottomNav() {
               return (
                 <Link key={item.id} href={item.href} className="relative">
                   <motion.div
-                    className={`flex flex-col items-center py-2 px-4 rounded-xl transition-colors ${
+                    className={`flex flex-col items-center py-2 px-3 rounded-xl transition-colors ${
                       active
                         ? 'text-primary-600'
                         : 'text-gray-400 hover:text-gray-600'
