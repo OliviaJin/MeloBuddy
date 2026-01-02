@@ -1,14 +1,14 @@
 'use client'
 
 import { useGameStore } from '@/stores'
+import { useLanguageStore } from '@/stores/useLanguageStore'
+import { t } from '@/i18n/translations'
 import { songs } from '@/data'
 import { motion } from 'framer-motion'
 import { Trophy, Star, Flame, Music, Target, Award, Lock } from 'lucide-react'
 
 interface Achievement {
   id: string
-  name: string
-  description: string
   icon: React.ReactNode
   condition: (state: {
     level: number
@@ -29,24 +29,18 @@ interface Achievement {
 const achievements: Achievement[] = [
   {
     id: 'first-song',
-    name: '初次演奏',
-    description: '完成第一首曲目',
     icon: <Music className="w-6 h-6" />,
     condition: (s) => s.completedSongs.length >= 1,
     progress: (s) => ({ current: Math.min(s.completedSongs.length, 1), total: 1 }),
   },
   {
     id: 'song-collector-3',
-    name: '曲目收集者',
-    description: '完成3首曲目',
     icon: <Star className="w-6 h-6" />,
     condition: (s) => s.completedSongs.length >= 3,
     progress: (s) => ({ current: Math.min(s.completedSongs.length, 3), total: 3 }),
   },
   {
     id: 'song-master',
-    name: '曲库大师',
-    description: '完成全部曲目',
     icon: <Trophy className="w-6 h-6" />,
     condition: (s) => s.completedSongs.length >= songs.length,
     progress: (s) => ({
@@ -56,48 +50,36 @@ const achievements: Achievement[] = [
   },
   {
     id: 'streak-3',
-    name: '持之以恒',
-    description: '连续练习3天',
     icon: <Flame className="w-6 h-6" />,
     condition: (s) => s.streakDays >= 3,
     progress: (s) => ({ current: Math.min(s.streakDays, 3), total: 3 }),
   },
   {
     id: 'streak-7',
-    name: '周周不断',
-    description: '连续练习7天',
     icon: <Flame className="w-6 h-6" />,
     condition: (s) => s.streakDays >= 7,
     progress: (s) => ({ current: Math.min(s.streakDays, 7), total: 7 }),
   },
   {
     id: 'streak-30',
-    name: '月度坚持',
-    description: '连续练习30天',
     icon: <Award className="w-6 h-6" />,
     condition: (s) => s.streakDays >= 30,
     progress: (s) => ({ current: Math.min(s.streakDays, 30), total: 30 }),
   },
   {
     id: 'level-5',
-    name: '初学者',
-    description: '达到5级',
     icon: <Target className="w-6 h-6" />,
     condition: (s) => s.level >= 5,
     progress: (s) => ({ current: Math.min(s.level, 5), total: 5 }),
   },
   {
     id: 'level-10',
-    name: '进阶者',
-    description: '达到10级',
     icon: <Target className="w-6 h-6" />,
     condition: (s) => s.level >= 10,
     progress: (s) => ({ current: Math.min(s.level, 10), total: 10 }),
   },
   {
     id: 'xp-1000',
-    name: '经验丰富',
-    description: '累计获得1000 XP',
     icon: <Star className="w-6 h-6" />,
     condition: (s) => s.xp >= 1000,
     progress: (s) => ({ current: Math.min(s.xp, 1000), total: 1000 }),
@@ -107,6 +89,7 @@ const achievements: Achievement[] = [
 export default function AchievementsPage() {
   const { level, streakDays, completedSongs, xp, todayPracticeCount } =
     useGameStore()
+  const { language } = useLanguageStore()
 
   const state = { level, streakDays, completedSongs, xp, todayPracticeCount }
 
@@ -119,8 +102,8 @@ export default function AchievementsPage() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h1 className="text-2xl font-bold text-gray-800">成就</h1>
-        <p className="text-gray-500 text-sm">记录你的每一个里程碑</p>
+        <h1 className="text-2xl font-bold text-gray-800">{t('achievements.title', language)}</h1>
+        <p className="text-gray-500 text-sm">{t('achievements.subtitle', language)}</p>
       </motion.div>
 
       {/* 成就统计 */}
@@ -132,7 +115,7 @@ export default function AchievementsPage() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-white/80 text-sm">已解锁成就</p>
+            <p className="text-white/80 text-sm">{t('achievements.unlocked', language)}</p>
             <p className="text-3xl font-bold">
               {unlockedCount} / {achievements.length}
             </p>
@@ -191,14 +174,14 @@ export default function AchievementsPage() {
                       unlocked ? 'text-gray-800' : 'text-gray-400'
                     }`}
                   >
-                    {achievement.name}
+                    {t(`achievement.${achievement.id}`, language)}
                   </h3>
                   <p
                     className={`text-sm ${
                       unlocked ? 'text-gray-500' : 'text-gray-400'
                     }`}
                   >
-                    {achievement.description}
+                    {t(`achievement.${achievement.id}.desc`, language)}
                   </p>
 
                   {/* 进度条 */}

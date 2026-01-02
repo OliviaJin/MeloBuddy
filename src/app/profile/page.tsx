@@ -79,10 +79,12 @@ function AvatarPicker({
   currentEmoji,
   onSelect,
   onClose,
+  lang,
 }: {
   currentEmoji: string
   onSelect: (emoji: string) => void
   onClose: () => void
+  lang: Language
 }) {
   return (
     <motion.div
@@ -99,7 +101,7 @@ function AvatarPicker({
         exit={{ scale: 0.9, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">选择头像</h3>
+        <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">{t('profile.selectAvatar', lang)}</h3>
         <div className="grid grid-cols-4 gap-3">
           {avatarEmojis.map((emoji) => (
             <button
@@ -122,7 +124,7 @@ function AvatarPicker({
           onClick={onClose}
           className="w-full mt-4 py-2 text-gray-500 font-medium"
         >
-          取消
+          {t('profile.cancel', lang)}
         </button>
       </motion.div>
     </motion.div>
@@ -277,9 +279,9 @@ export default function ProfilePage() {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
     if (hours > 0) {
-      return `${hours}小时${minutes}分钟`
+      return `${hours}${t('profile.hours', language)}${minutes}${t('profile.minutes', language)}`
     }
-    return `${minutes}分钟`
+    return `${minutes}${t('profile.minutes', language)}`
   }
 
   // 检查成就状态
@@ -329,7 +331,7 @@ export default function ProfilePage() {
                   value={tempNickname}
                   onChange={(e) => setTempNickname(e.target.value)}
                   className="bg-white/20 rounded-lg px-3 py-1 text-white placeholder-white/50 outline-none flex-1"
-                  placeholder="输入昵称"
+                  placeholder={t('profile.enterNickname', language)}
                   maxLength={10}
                   autoFocus
                 />
@@ -364,7 +366,7 @@ export default function ProfilePage() {
               <span className="bg-white/20 px-3 py-0.5 rounded-full text-sm font-medium">
                 Lv.{level}
               </span>
-              <span className="text-white/70 text-sm">小提琴学员</span>
+              <span className="text-white/70 text-sm">{t('profile.level', language)}</span>
             </div>
           </div>
         </div>
@@ -372,7 +374,7 @@ export default function ProfilePage() {
         {/* XP进度条 */}
         <div className="mt-4">
           <div className="flex justify-between text-sm mb-1.5">
-            <span className="text-white/70">经验值</span>
+            <span className="text-white/70">{t('profile.xp', language)}</span>
             <span className="text-white/70">
               {xp} / {nextLevelXp} XP
             </span>
@@ -398,7 +400,7 @@ export default function ProfilePage() {
         <div className="bg-white rounded-2xl p-4 shadow-cute">
           <div className="flex items-center gap-2 text-gray-500 mb-2">
             <Clock className="w-4 h-4" />
-            <span className="text-xs">总练习时长</span>
+            <span className="text-xs">{t('profile.totalTime', language)}</span>
           </div>
           <p className="text-xl font-bold text-gray-800">
             {formatTime(totalPracticeTime)}
@@ -408,7 +410,7 @@ export default function ProfilePage() {
         <div className="bg-white rounded-2xl p-4 shadow-cute">
           <div className="flex items-center gap-2 text-gray-500 mb-2">
             <Music className="w-4 h-4" />
-            <span className="text-xs">完成曲目</span>
+            <span className="text-xs">{t('profile.completedSongs', language)}</span>
           </div>
           <p className="text-xl font-bold text-gray-800">
             {completedSongs.length} <span className="text-sm font-normal text-gray-500">/ {songs.length}</span>
@@ -418,17 +420,17 @@ export default function ProfilePage() {
         <div className="bg-white rounded-2xl p-4 shadow-cute">
           <div className="flex items-center gap-2 text-gray-500 mb-2">
             <Flame className="w-4 h-4" />
-            <span className="text-xs">最长连胜</span>
+            <span className="text-xs">{t('profile.bestStreak', language)}</span>
           </div>
           <p className="text-xl font-bold text-gray-800">
-            {bestStreak} <span className="text-sm font-normal text-gray-500">天</span>
+            {bestStreak} <span className="text-sm font-normal text-gray-500">{t('profile.days', language)}</span>
           </p>
         </div>
 
         <div className="bg-white rounded-2xl p-4 shadow-cute">
           <div className="flex items-center gap-2 text-gray-500 mb-2">
             <Star className="w-4 h-4" />
-            <span className="text-xs">总获得XP</span>
+            <span className="text-xs">{t('profile.totalXP', language)}</span>
           </div>
           <p className="text-xl font-bold text-gray-800">{xp}</p>
         </div>
@@ -442,7 +444,7 @@ export default function ProfilePage() {
         transition={{ delay: 0.2 }}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-gray-800">成就</h2>
+          <h2 className="font-bold text-gray-800">{t('profile.achievements', language)}</h2>
           <span className="text-xs text-gray-500">
             {achievements.filter((a) => a.check(achievementState)).length} / {achievements.length}
           </span>
@@ -455,7 +457,7 @@ export default function ProfilePage() {
               <div
                 key={achievement.id}
                 className="text-center"
-                title={achievement.description}
+                title={t(`profile.achievement.${achievement.id}.desc`, language)}
               >
                 <motion.div
                   className={`w-14 h-14 mx-auto rounded-xl flex items-center justify-center text-2xl mb-1 ${
@@ -468,7 +470,7 @@ export default function ProfilePage() {
                   {achievement.icon}
                 </motion.div>
                 <p className={`text-xs ${unlocked ? 'text-gray-700' : 'text-gray-400'}`}>
-                  {achievement.name}
+                  {t(`profile.achievement.${achievement.id}`, language)}
                 </p>
               </div>
             )
@@ -529,6 +531,7 @@ export default function ProfilePage() {
             currentEmoji={avatarEmoji}
             onSelect={setAvatarEmoji}
             onClose={() => setShowAvatarPicker(false)}
+            lang={language}
           />
         )}
       </AnimatePresence>

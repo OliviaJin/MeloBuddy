@@ -77,6 +77,12 @@ export function BottomNav() {
                         strokeWidth={active ? 2.5 : 2}
                         fill={active ? 'currentColor' : 'none'}
                       />
+                      {/* AI Badge for MiaoDo */}
+                      {item.id === 'ai-chat' && (
+                        <span className="absolute -top-1 -right-3 bg-gradient-to-r from-primary-500 to-secondary-500 text-white text-[8px] font-bold px-1 py-0.5 rounded-full leading-none">
+                          AI
+                        </span>
+                      )}
                     </motion.div>
 
                     {/* 标签 */}
