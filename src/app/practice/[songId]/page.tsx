@@ -777,7 +777,7 @@ export default function PracticePage() {
       </div>
 
       {/* 主内容 */}
-      <div className="p-4 space-y-4 pb-32">
+      <div className="p-4 space-y-4 pb-44">
         {/* 当前音符大显示 */}
         <motion.div
           className="bg-gradient-to-br from-primary-500 to-secondary-500 rounded-3xl p-6 text-white text-center shadow-lg"
@@ -981,7 +981,7 @@ export default function PracticePage() {
       </div>
 
       {/* 底部控制区 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 pb-8">
+      <div className="fixed bottom-20 left-0 right-0 bg-white border-t border-gray-100 p-4 z-40">
         <div className="max-w-[430px] mx-auto">
           <div className="flex gap-3">
             <button

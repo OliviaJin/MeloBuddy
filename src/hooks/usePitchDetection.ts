@@ -223,8 +223,8 @@ export function usePitchDetection(): PitchDetectionResult {
           audioContextRef.current.sampleRate
         )
 
-        // 只在有足够置信度时更新
-        if (clarity > 0.85 && pitch > 150 && pitch < 2000) {
+        // 只在有足够置信度时更新 (降低阈值以提高灵敏度)
+        if (clarity > 0.7 && pitch > 180 && pitch < 2000) {
           const { note, cents: detectedCents } = frequencyToNote(pitch)
 
           setFrequency(Math.round(pitch * 10) / 10)
