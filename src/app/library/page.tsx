@@ -4,62 +4,56 @@ import { useState, useMemo } from 'react'
 import { useGameStore } from '@/stores'
 import { useLanguageStore } from '@/stores/useLanguageStore'
 import { Language, t } from '@/i18n/translations'
-import { songs, Song } from '@/data'
+import { songLibrary, searchSongs } from '@/data/songs/index'
+import { SongMeta } from '@/types'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-import { Music, Star, Clock, Check, Play, Lock } from 'lucide-react'
+import { Music, Star, Clock, Check, Play, Search, X } from 'lucide-react'
 
 // 难度筛选选项
-type DifficultyFilter = 'all' | 1 | 2 | 3
+type DifficultyFilter = 'all' | 1 | 2 | 3 | 4
 
-const filterOptions: { value: DifficultyFilter; labelKey: string; stars?: number }[] = [
+const difficultyOptions: { value: DifficultyFilter; labelKey: string; stars?: number }[] = [
   { value: 'all', labelKey: 'library.all' },
   { value: 1, labelKey: 'library.beginner', stars: 1 },
   { value: 2, labelKey: 'library.elementary', stars: 2 },
   { value: 3, labelKey: 'library.intermediate', stars: 3 },
+  { value: 4, labelKey: 'library.advanced', stars: 4 },
+]
+
+// 分类筛选选项
+type CategoryFilter = 'all' | 'scale' | 'etude' | 'piece' | 'exam'
+
+const categoryOptions: { value: CategoryFilter; labelKey: string }[] = [
+  { value: 'all', labelKey: 'library.all' },
+  { value: 'scale', labelKey: 'library.category.scale' },
+  { value: 'etude', labelKey: 'library.category.etude' },
+  { value: 'piece', labelKey: 'library.category.piece' },
+  { value: 'exam', labelKey: 'library.category.exam' },
 ]
 
 // SongCard 组件
 function SongCard({
   song,
   isCompleted,
-  isLocked,
   language,
 }: {
-  song: Song
+  song: SongMeta
   isCompleted: boolean
-  isLocked: boolean
   language: Language
 }) {
-  const categoryColors = {
-    音阶: 'bg-blue-50 border-blue-200',
-    练习曲: 'bg-amber-50 border-amber-200',
-    乐曲: 'bg-pink-50 border-pink-200',
+  const categoryColors: Record<SongMeta['category'], string> = {
+    scale: 'bg-blue-100',
+    etude: 'bg-amber-100',
+    piece: 'bg-pink-100',
+    exam: 'bg-purple-100',
   }
 
-  const categoryIcons = {
-    音阶: 'bg-pastel-blue',
-    练习曲: 'bg-pastel-yellow',
-    乐曲: 'bg-pastel-pink',
-  }
-
-  if (isLocked) {
-    return (
-      <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200 opacity-60">
-        <div className="flex items-center gap-4">
-          {/* 锁定图标 */}
-          <div className="w-14 h-14 rounded-xl bg-gray-200 flex items-center justify-center">
-            <Lock className="w-6 h-6 text-gray-400" />
-          </div>
-
-          {/* 信息 */}
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-gray-400 truncate">{song.name}</h3>
-            <p className="text-sm text-gray-400">{t('library.locked', language)}{song.requiredLevel}</p>
-          </div>
-        </div>
-      </div>
-    )
+  const categoryIcons: Record<SongMeta['category'], string> = {
+    scale: 'from-blue-400 to-blue-500',
+    etude: 'from-amber-400 to-amber-500',
+    piece: 'from-pink-400 to-pink-500',
+    exam: 'from-purple-400 to-purple-500',
   }
 
   return (
@@ -72,16 +66,16 @@ function SongCard({
         whileTap={{ scale: 0.98 }}
       >
         <div className="flex items-center gap-4">
-          {/* 难度星级 + 图标 */}
+          {/* 分类图标 */}
           <div className="relative">
             <div
-              className={`w-14 h-14 rounded-xl ${categoryIcons[song.category]} flex items-center justify-center`}
+              className={`w-14 h-14 rounded-xl bg-gradient-to-br ${categoryIcons[song.category]} flex items-center justify-center shadow-sm`}
             >
-              <Music className="w-7 h-7 text-gray-700" />
+              <Music className="w-7 h-7 text-white" />
             </div>
             {isCompleted && (
               <motion.div
-                className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center"
+                className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow-sm"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring' }}
@@ -93,12 +87,14 @@ function SongCard({
 
           {/* 曲目信息 */}
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-gray-800 truncate">{song.name}</h3>
-            <p className="text-sm text-gray-500 truncate">{song.composer}</p>
+            <h3 className="font-bold text-gray-800 truncate">{song.title}</h3>
+            {song.composer && (
+              <p className="text-sm text-gray-500 truncate">{song.composer}</p>
+            )}
             <div className="flex items-center gap-3 mt-1.5">
               {/* 难度星级 */}
               <div className="flex gap-0.5">
-                {Array.from({ length: 5 }).map((_, i) => (
+                {Array.from({ length: 4 }).map((_, i) => (
                   <Star
                     key={i}
                     className={`w-3 h-3 ${
@@ -112,7 +108,7 @@ function SongCard({
               {/* 时长 */}
               <div className="flex items-center gap-1 text-gray-400">
                 <Clock className="w-3 h-3" />
-                <span className="text-xs">{song.duration}秒</span>
+                <span className="text-xs">{song.duration}{t('library.seconds', language)}</span>
               </div>
             </div>
           </div>
@@ -133,23 +129,44 @@ function SongCard({
 }
 
 export default function LibraryPage() {
-  const { completedSongs, level } = useGameStore()
+  const { completedSongs } = useGameStore()
   const { language } = useLanguageStore()
-  const [activeFilter, setActiveFilter] = useState<DifficultyFilter>('all')
+
+  // 搜索状态
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // 筛选状态
+  const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>('all')
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
 
   // 筛选曲目
   const filteredSongs = useMemo(() => {
-    if (activeFilter === 'all') return songs
-    return songs.filter((song) => song.difficulty === activeFilter)
-  }, [activeFilter])
+    let songs = songLibrary
+
+    // 搜索过滤
+    if (searchQuery.trim()) {
+      songs = searchSongs(searchQuery.trim())
+    }
+
+    // 难度过滤
+    if (difficultyFilter !== 'all') {
+      songs = songs.filter((song) => song.difficulty === difficultyFilter)
+    }
+
+    // 分类过滤
+    if (categoryFilter !== 'all') {
+      songs = songs.filter((song) => song.category === categoryFilter)
+    }
+
+    return songs
+  }, [searchQuery, difficultyFilter, categoryFilter])
 
   // 统计
   const stats = useMemo(() => {
-    const total = songs.length
+    const total = songLibrary.length
     const completed = completedSongs.length
-    const unlocked = songs.filter((s) => s.requiredLevel <= level).length
-    return { total, completed, unlocked }
-  }, [completedSongs, level])
+    return { total, completed }
+  }, [completedSongs])
 
   return (
     <div className="p-4 space-y-4">
@@ -160,23 +177,50 @@ export default function LibraryPage() {
       >
         <h1 className="text-2xl font-bold text-gray-800">{t('library.title', language)}</h1>
         <p className="text-gray-500 text-sm">
-          {t('library.completed', language)} {stats.completed}/{stats.total}
+          {t('library.completed', language)} {stats.completed}/{stats.total} {t('library.songs', language)}
         </p>
+      </motion.div>
+
+      {/* 搜索栏 */}
+      <motion.div
+        className="relative"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+      >
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('library.search', language)}
+            className="w-full pl-10 pr-10 py-3 bg-white rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-gray-800 placeholder-gray-400"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </motion.div>
 
       {/* 难度筛选 Tab */}
       <motion.div
-        className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4"
+        className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        {filterOptions.map((option) => (
+        {difficultyOptions.map((option) => (
           <button
             key={option.value}
-            onClick={() => setActiveFilter(option.value)}
+            onClick={() => setDifficultyFilter(option.value)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-              activeFilter === option.value
+              difficultyFilter === option.value
                 ? 'bg-primary-600 text-white shadow-md'
                 : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
             }`}
@@ -187,7 +231,7 @@ export default function LibraryPage() {
                   <Star
                     key={i}
                     className={`w-3 h-3 ${
-                      activeFilter === option.value
+                      difficultyFilter === option.value
                         ? 'text-yellow-300 fill-yellow-300'
                         : 'text-yellow-400 fill-yellow-400'
                     }`}
@@ -200,12 +244,33 @@ export default function LibraryPage() {
         ))}
       </motion.div>
 
+      {/* 分类筛选 */}
+      <motion.div
+        className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+      >
+        {categoryOptions.map((option) => (
+          <button
+            key={option.value}
+            onClick={() => setCategoryFilter(option.value)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+              categoryFilter === option.value
+                ? 'bg-secondary-500 text-white shadow-md'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {t(option.labelKey, language)}
+          </button>
+        ))}
+      </motion.div>
+
       {/* 曲目列表 */}
       <div className="space-y-3">
         <AnimatePresence mode="popLayout">
           {filteredSongs.map((song, index) => {
             const isCompleted = completedSongs.includes(song.id)
-            const isLocked = song.requiredLevel > level
 
             return (
               <motion.div
@@ -213,13 +278,12 @@ export default function LibraryPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ delay: index * 0.05 }}
+                transition={{ delay: index * 0.03 }}
                 layout
               >
                 <SongCard
                   song={song}
                   isCompleted={isCompleted}
-                  isLocked={isLocked}
                   language={language}
                 />
               </motion.div>
@@ -234,13 +298,13 @@ export default function LibraryPage() {
             animate={{ opacity: 1 }}
           >
             <Music className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">暂无此难度的曲目</p>
+            <p className="text-gray-500">{t('library.noResults', language)}</p>
           </motion.div>
         )}
       </div>
 
       {/* 底部间距 */}
-      <div className="h-4" />
+      <div className="h-20" />
     </div>
   )
 }

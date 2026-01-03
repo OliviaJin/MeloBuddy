@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   keywords: ['小提琴', '音乐学习', 'AI陪练', '乐器练习'],
   authors: [{ name: 'MeloBuddy Team' }],
   manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

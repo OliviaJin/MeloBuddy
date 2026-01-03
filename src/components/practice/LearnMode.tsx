@@ -2,26 +2,43 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { SkipForward, Volume2, Mic, MicOff, Check, ChevronUp, ChevronDown, MessageCircle, X } from 'lucide-react'
+import {
+  SkipForward,
+  Volume2,
+  Mic,
+  MicOff,
+  Check,
+  ChevronUp,
+  ChevronDown,
+  MessageCircle,
+  X,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  Star,
+} from 'lucide-react'
 import { Song } from '@/data'
 import { useLanguageStore } from '@/stores/useLanguageStore'
 import { t } from '@/i18n/translations'
 import { PracticeResult, NotationMode } from '@/types/practice'
+import { ParsedNote, ParsedSong } from '@/types'
 import { playNote, playSuccess, playCombo, playSkip, initAudio } from '@/lib/audio'
 import { usePitchDetection } from '@/hooks'
+import { SheetMusicDisplay } from '@/components/sheet'
+import { loadMusicXML } from '@/lib/musicxml-parser'
 import AIChatPage from '@/app/ai-chat/page'
 import {
-  PracticeHeader,
   StaffDisplay,
   NumberedDisplay,
   ViolinFingerboard,
   FeedbackMessage,
   NotationSwitcher,
-  CurrentNoteDisplay,
+  stringNames,
+  getFingerLabel,
 } from './shared'
 
 interface LearnModeProps {
-  song: Song
+  song: Song & { musicXmlUrl?: string }
   onComplete: (result: Omit<PracticeResult, 'mode' | 'songId'>) => void
   onBack: () => void
 }
@@ -29,16 +46,25 @@ interface LearnModeProps {
 export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
   const { language } = useLanguageStore()
 
+  // 是否使用 MusicXML
+  const useMusicXML = !!song.musicXmlUrl
+
   // 练习状态
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [completedIndices, setCompletedIndices] = useState<Set<number>>(new Set())
+  const [correctCount, setCorrectCount] = useState(0)
+  const [wrongCount, setWrongCount] = useState(0)
   const [skippedCount, setSkippedCount] = useState(0)
   const [comboCount, setComboCount] = useState(0)
   const [maxCombo, setMaxCombo] = useState(0)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'skip' | 'combo'; combo?: number } | null>(null)
   const [startTime] = useState(Date.now())
 
-  // 乐谱显示模式
+  // MusicXML 解析后的数据
+  const [parsedSong, setParsedSong] = useState<ParsedSong | null>(null)
+  const [parsedNotes, setParsedNotes] = useState<ParsedNote[]>([])
+  const [isLoading, setIsLoading] = useState(useMusicXML)
+
+  // 乐谱显示模式（仅用于非MusicXML模式）
   const [notationMode, setNotationMode] = useState<NotationMode>('staff')
 
   // AI 聊天弹窗状态
@@ -68,18 +94,69 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
     initAudio()
   }, [])
 
+  // 加载 MusicXML
+  useEffect(() => {
+    if (useMusicXML && song.musicXmlUrl) {
+      setIsLoading(true)
+      loadMusicXML(song.musicXmlUrl)
+        .then((result) => {
+          setParsedSong(result)
+          setParsedNotes(result.notes)
+          if (result.notes.length > 0) {
+            setTargetNote(result.notes[0].pitch)
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to load MusicXML:', error)
+        })
+        .finally(() => {
+          setIsLoading(false)
+        })
+    }
+  }, [useMusicXML, song.musicXmlUrl, setTargetNote])
+
+  // 获取当前音符（支持两种数据源）
+  const getCurrentNote = useCallback(() => {
+    if (useMusicXML && parsedNotes.length > 0) {
+      return parsedNotes[currentIndex]
+    }
+    return song.notes[currentIndex]
+  }, [useMusicXML, parsedNotes, song.notes, currentIndex])
+
+  // 获取总音符数
+  const getTotalNotes = useCallback(() => {
+    if (useMusicXML && parsedNotes.length > 0) {
+      return parsedNotes.length
+    }
+    return song.notes.length
+  }, [useMusicXML, parsedNotes, song.notes])
+
   // 更新目标音符
   useEffect(() => {
-    if (currentIndex < song.notes.length) {
-      setTargetNote(song.notes[currentIndex].pitch)
+    const totalNotes = getTotalNotes()
+    if (currentIndex < totalNotes) {
+      const note = getCurrentNote()
+      if (note) {
+        setTargetNote(note.pitch)
+      }
     }
-  }, [currentIndex, song, setTargetNote])
+  }, [currentIndex, getCurrentNote, getTotalNotes, setTargetNote])
+
+  // SheetMusicDisplay ready 回调
+  const handleSheetReady = useCallback((notes: ParsedNote[]) => {
+    // 如果已经从 loadMusicXML 加载了，可以忽略
+    if (parsedNotes.length === 0) {
+      setParsedNotes(notes)
+      if (notes.length > 0) {
+        setTargetNote(notes[0].pitch)
+      }
+    }
+  }, [parsedNotes.length, setTargetNote])
 
   // 完成练习
   const finishPractice = useCallback(() => {
-    const totalNotes = song.notes.length
-    const completedCount = completedIndices.size
-    const score = Math.round((completedCount / totalNotes) * 100)
+    const totalNotes = getTotalNotes()
+    const score = Math.round((correctCount / totalNotes) * 100)
 
     let stars = 0
     if (score >= 100) stars = 3
@@ -93,17 +170,18 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
       stars,
       xpEarned: Math.round(score * 0.5) + (stars * 10),
       totalNotes,
-      completedNotes: completedCount,
+      completedNotes: correctCount,
       skippedNotes: skippedCount,
       maxCombo,
       duration,
       accuracy: score,
     })
-  }, [song, completedIndices, skippedCount, maxCombo, startTime, onComplete])
+  }, [getTotalNotes, correctCount, skippedCount, maxCombo, startTime, onComplete])
 
   // 自动完成（音高检测成功）
   const handleAutoComplete = useCallback(() => {
-    if (currentIndex >= song.notes.length) return
+    const totalNotes = getTotalNotes()
+    if (currentIndex >= totalNotes) return
 
     // 清除计时器
     if (correctTimerRef.current) {
@@ -112,8 +190,8 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
     }
     setCorrectDuration(0)
 
-    // 更新完成状态
-    setCompletedIndices((prev) => new Set(prev).add(currentIndex))
+    // 更新统计
+    setCorrectCount((prev) => prev + 1)
 
     // 更新连击
     const newCombo = comboCount + 1
@@ -132,13 +210,13 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
     }
 
     // 进入下一个或完成
-    if (currentIndex < song.notes.length - 1) {
+    if (currentIndex < totalNotes - 1) {
       setCurrentIndex((prev) => prev + 1)
     } else {
       stopListening()
       setTimeout(finishPractice, 500)
     }
-  }, [song, currentIndex, comboCount, maxCombo, finishPractice, stopListening])
+  }, [getTotalNotes, currentIndex, comboCount, maxCombo, finishPractice, stopListening])
 
   // 音高正确时的自动确认逻辑
   useEffect(() => {
@@ -172,183 +250,288 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
     }
   }, [isListening, isCorrect, handleAutoComplete])
 
+  // 手动完成当前音符
+  const handleManualComplete = useCallback(() => {
+    const totalNotes = getTotalNotes()
+    if (currentIndex >= totalNotes) return
+
+    // 更新统计
+    setCorrectCount((prev) => prev + 1)
+
+    // 更新连击
+    const newCombo = comboCount + 1
+    setComboCount(newCombo)
+    if (newCombo > maxCombo) {
+      setMaxCombo(newCombo)
+    }
+
+    // 显示反馈
+    setFeedback({ type: 'success' })
+    playSuccess()
+
+    // 进入下一个或完成
+    if (currentIndex < totalNotes - 1) {
+      setCurrentIndex((prev) => prev + 1)
+    } else {
+      setTimeout(finishPractice, 500)
+    }
+  }, [getTotalNotes, currentIndex, comboCount, maxCombo, finishPractice])
+
   // 跳过当前音符
   const handleSkip = useCallback(() => {
-    if (currentIndex >= song.notes.length) return
+    const totalNotes = getTotalNotes()
+    if (currentIndex >= totalNotes) return
 
     setSkippedCount((prev) => prev + 1)
     setComboCount(0)
     setFeedback({ type: 'skip' })
     playSkip()
 
-    if (currentIndex < song.notes.length - 1) {
+    if (currentIndex < totalNotes - 1) {
       setCurrentIndex((prev) => prev + 1)
     } else {
       setTimeout(finishPractice, 500)
     }
-  }, [song, currentIndex, finishPractice])
+  }, [getTotalNotes, currentIndex, finishPractice])
 
-  // 重听示范
-  const handleReplay = useCallback(() => {
-    const note = song.notes[currentIndex]
-    playNote(note.pitch, note.duration)
-  }, [song, currentIndex])
+  // 播放当前音符示范
+  const handlePlayDemo = useCallback(() => {
+    const note = getCurrentNote()
+    if (note) {
+      playNote(note.pitch, note.duration || 0.5)
+    }
+  }, [getCurrentNote])
 
-  const currentNote = song.notes[currentIndex]
+  // 点击乐谱音符
+  const handleNoteClick = useCallback((index: number) => {
+    setCurrentIndex(index)
+  }, [])
+
+  const currentNote = getCurrentNote()
+  const totalNotes = getTotalNotes()
+
+  // 渲染加载状态
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">加载乐谱中...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <PracticeHeader
-        song={song}
-        currentIndex={currentIndex}
-        onBack={onBack}
-        language={language}
-      />
+      {/* 顶部导航栏 */}
+      <div className="sticky top-0 z-20 bg-white border-b border-gray-100">
+        <div className="flex items-center justify-between p-4">
+          <button
+            onClick={onBack}
+            className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <ArrowLeft className="w-6 h-6 text-gray-700" />
+          </button>
+          <div className="text-center flex-1 mx-4">
+            <h1 className="font-bold text-gray-800">{t('practice.mode.learn', language)}</h1>
+            <p className="text-xs text-gray-500">{song.name}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">
+              {currentIndex + 1}/{totalNotes}
+            </span>
+            <span className="flex items-center gap-1 text-sm text-primary-600">
+              <Star className="w-4 h-4 fill-primary-500" />
+              +{song.xpReward}
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* 主内容 */}
-      <div className="p-4 space-y-4 pb-44">
-        {/* 当前音符大显示 */}
-        <CurrentNoteDisplay
-          note={currentNote}
-          currentIndex={currentIndex}
-          language={language}
-        />
+      <div className="p-4 space-y-4 pb-60">
+        {/* 五线谱显示 - MusicXML模式 */}
+        {useMusicXML && song.musicXmlUrl && (
+          <SheetMusicDisplay
+            musicXmlUrl={song.musicXmlUrl}
+            currentNoteIndex={currentIndex}
+            highlightColor="#8B5CF6"
+            zoom={1.0}
+            showCursor={true}
+            onReady={handleSheetReady}
+            onNoteClick={handleNoteClick}
+          />
+        )}
 
-        {/* 音高检测显示 */}
+        {/* 乐谱显示 - 传统模式 */}
+        {!useMusicXML && (
+          <>
+            <NotationSwitcher
+              mode={notationMode}
+              onModeChange={setNotationMode}
+              language={language}
+            />
+            {notationMode === 'staff' ? (
+              <StaffDisplay
+                notes={song.notes}
+                currentIndex={currentIndex}
+                completedIndices={new Set()}
+              />
+            ) : (
+              <NumberedDisplay
+                notes={song.notes}
+                currentIndex={currentIndex}
+                completedIndices={new Set()}
+              />
+            )}
+          </>
+        )}
+
+        {/* 当前音符信息卡片 */}
+        {currentNote && (
+          <motion.div
+            className="bg-gradient-to-br from-primary-500 to-pink-500 rounded-3xl p-6 text-white shadow-lg"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            key={currentIndex}
+          >
+            <div className="flex items-center justify-center gap-6">
+              {/* 音符图标和音名 */}
+              <motion.div
+                className="text-center"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring' }}
+              >
+                <div className="text-2xl mb-1">🎵</div>
+                <div className="text-5xl font-bold">{currentNote.pitch}</div>
+              </motion.div>
+
+              {/* 分隔线 */}
+              <div className="w-px h-20 bg-white/30" />
+
+              {/* 弦、指法、弓向 */}
+              <div className="space-y-2 text-left">
+                {'string' in currentNote && currentNote.string !== undefined && (
+                  <div className="flex items-center gap-2">
+                    <span className="bg-white/20 px-3 py-1.5 rounded-full font-bold">
+                      {stringNames[currentNote.string as number]}{t('practice.string', language)}
+                    </span>
+                    <span className="text-white/70">
+                      {'finger' in currentNote && currentNote.finger !== undefined
+                        ? getFingerLabel(currentNote.finger as number, language)
+                        : ''}
+                    </span>
+                  </div>
+                )}
+                {'bowDirection' in currentNote && currentNote.bowDirection && (
+                  <div className="flex items-center gap-2">
+                    <span className="bg-white/20 px-3 py-1.5 rounded-full font-bold flex items-center gap-1">
+                      {currentNote.bowDirection === 'up' ? (
+                        <>
+                          <ArrowUp className="w-4 h-4" />
+                          {t('practice.upBow', language)}
+                        </>
+                      ) : (
+                        <>
+                          <ArrowDown className="w-4 h-4" />
+                          {t('practice.downBow', language)}
+                        </>
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 音高检测正确指示 */}
+            {isCorrect && (
+              <motion.div
+                className="mt-4 bg-white/20 rounded-full px-4 py-2 text-center"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+              >
+                <Check className="w-5 h-5 inline-block mr-2" />
+                {t('practice.great', language)}
+                <div className="w-full h-1.5 bg-white/20 rounded-full mt-2 overflow-hidden">
+                  <motion.div
+                    className="h-full bg-white"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(correctDuration / REQUIRED_CORRECT_TIME) * 100}%` }}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+
+        {/* 小提琴指板 */}
+        {currentNote && 'string' in currentNote && 'finger' in currentNote && (
+          <ViolinFingerboard
+            currentNote={currentNote as { pitch: string; string: number; finger: number; duration: number }}
+            language={language}
+          />
+        )}
+
+        {/* 音高检测状态 */}
         {isListening && (
           <motion.div
             className="bg-white rounded-2xl p-4 shadow-cute"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-2">
               <p className="text-xs text-gray-500 flex items-center gap-1">
                 <Mic className="w-3 h-3 text-green-500" />
                 {t('practice.detecting', language)}
               </p>
-              <div className="flex items-center gap-2">
-                {frequency && (
-                  <span className="text-xs text-gray-400">
-                    {frequency} Hz
-                  </span>
-                )}
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  confidence > 0.9 ? 'bg-green-100 text-green-700' :
-                  confidence > 0.8 ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-gray-100 text-gray-500'
-                }`}>
-                  {Math.round(confidence * 100)}%
-                </span>
-              </div>
+              {frequency && (
+                <span className="text-xs text-gray-400">{Math.round(frequency)} Hz</span>
+              )}
             </div>
 
             <div className="flex items-center justify-center gap-4">
-              <div className="flex flex-col items-center">
-                {currentPitch && centsDiff !== 0 && !isCorrect && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className={`flex items-center gap-1 ${
-                      centsDiff > 0 ? 'text-red-500' : 'text-blue-500'
-                    }`}
-                  >
-                    {centsDiff > 0 ? (
-                      <>
-                        <ChevronUp className="w-6 h-6" />
-                        <span className="text-sm font-medium">{t('practice.tooHigh', language)} {centsDiff}¢</span>
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="w-6 h-6" />
-                        <span className="text-sm font-medium">{t('practice.tooLow', language)} {Math.abs(centsDiff)}¢</span>
-                      </>
-                    )}
-                  </motion.div>
-                )}
-              </div>
+              {/* 音高偏移指示 */}
+              {currentPitch && centsDiff !== 0 && !isCorrect && (
+                <div className={`flex items-center gap-1 ${centsDiff > 0 ? 'text-red-500' : 'text-blue-500'}`}>
+                  {centsDiff > 0 ? (
+                    <>
+                      <ChevronUp className="w-5 h-5" />
+                      <span className="text-sm">{t('practice.tooHigh', language)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="w-5 h-5" />
+                      <span className="text-sm">{t('practice.tooLow', language)}</span>
+                    </>
+                  )}
+                </div>
+              )}
 
-              <motion.div
-                className={`w-24 h-24 rounded-2xl flex flex-col items-center justify-center ${
-                  isCorrect
-                    ? 'bg-green-100 border-2 border-green-400'
-                    : currentPitch
-                    ? 'bg-gray-100 border-2 border-gray-200'
-                    : 'bg-gray-50 border-2 border-dashed border-gray-200'
-                }`}
-                animate={isCorrect ? {
-                  scale: [1, 1.05, 1],
-                  borderColor: ['#4ade80', '#22c55e', '#4ade80']
-                } : {}}
-                transition={{ duration: 0.5, repeat: isCorrect ? Infinity : 0 }}
-              >
+              {/* 检测到的音高 */}
+              <div className={`w-20 h-20 rounded-xl flex flex-col items-center justify-center ${
+                isCorrect
+                  ? 'bg-green-100 border-2 border-green-400'
+                  : currentPitch
+                  ? 'bg-gray-100 border-2 border-gray-200'
+                  : 'bg-gray-50 border-2 border-dashed border-gray-200'
+              }`}>
                 {currentPitch ? (
-                  <>
-                    <span className={`text-3xl font-bold ${
-                      isCorrect ? 'text-green-600' : 'text-gray-700'
-                    }`}>
-                      {currentPitch}
-                    </span>
-                    {isCorrect && (
-                      <Check className="w-5 h-5 text-green-500 mt-1" />
-                    )}
-                  </>
+                  <span className={`text-2xl font-bold ${isCorrect ? 'text-green-600' : 'text-gray-700'}`}>
+                    {currentPitch}
+                  </span>
                 ) : (
-                  <span className="text-gray-400 text-sm">{t('practice.waitingNote', language)}</span>
-                )}
-              </motion.div>
-
-              <div className="flex flex-col items-center">
-                {isCorrect && (
-                  <motion.div
-                    className="w-16"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  >
-                    <div className="h-2 bg-green-100 rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full bg-green-500"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(correctDuration / REQUIRED_CORRECT_TIME) * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-green-600 text-center mt-1">
-                      {t('practice.holding', language)}
-                    </p>
-                  </motion.div>
+                  <span className="text-gray-400 text-xs">{t('practice.waitingNote', language)}</span>
                 )}
               </div>
             </div>
 
             {pitchError && (
-              <p className="text-red-500 text-sm text-center mt-2">{pitchError}</p>
+              <p className="text-red-500 text-xs text-center mt-2">{pitchError}</p>
             )}
           </motion.div>
         )}
-
-        {/* 乐谱显示切换 */}
-        <NotationSwitcher
-          mode={notationMode}
-          onModeChange={setNotationMode}
-          language={language}
-        />
-
-        {/* 乐谱显示 */}
-        {notationMode === 'staff' ? (
-          <StaffDisplay
-            notes={song.notes}
-            currentIndex={currentIndex}
-            completedIndices={completedIndices}
-          />
-        ) : (
-          <NumberedDisplay
-            notes={song.notes}
-            currentIndex={currentIndex}
-            completedIndices={completedIndices}
-          />
-        )}
-
-        {/* 指板显示 */}
-        <ViolinFingerboard currentNote={currentNote} language={language} />
 
         {/* 连击显示 */}
         {comboCount >= 3 && (
@@ -366,44 +549,56 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
 
       {/* 底部控制区 */}
       <div className="fixed bottom-20 left-0 right-0 bg-white border-t border-gray-100 p-4 z-40">
-        <div className="max-w-[430px] mx-auto">
+        <div className="max-w-[430px] mx-auto space-y-3">
+          {/* 听示范 + 跳过 */}
           <div className="flex gap-3">
             <button
-              onClick={handleSkip}
-              className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold text-gray-600 flex items-center justify-center gap-2"
-            >
-              <SkipForward className="w-5 h-5" />
-              {t('practice.skip', language)}
-            </button>
-
-            {isListening ? (
-              <motion.button
-                onClick={stopListening}
-                className="flex-[2] py-4 bg-red-500 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg"
-                whileTap={{ scale: 0.98 }}
-              >
-                <MicOff className="w-6 h-6" />
-                {t('practice.stopDetection', language)}
-              </motion.button>
-            ) : (
-              <motion.button
-                onClick={startListening}
-                className="flex-[2] py-4 bg-gradient-primary rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg"
-                whileTap={{ scale: 0.98 }}
-              >
-                <Mic className="w-6 h-6" />
-                {t('practice.startDetection', language)}
-              </motion.button>
-            )}
-
-            <button
-              onClick={handleReplay}
-              className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold text-gray-600 flex items-center justify-center gap-2"
+              onClick={handlePlayDemo}
+              className="flex-1 py-3 bg-blue-50 rounded-2xl font-medium text-blue-600 flex items-center justify-center gap-2"
             >
               <Volume2 className="w-5 h-5" />
               {t('practice.replay', language)}
             </button>
+
+            <button
+              onClick={handleSkip}
+              className="flex-1 py-3 bg-gray-100 rounded-2xl font-medium text-gray-600 flex items-center justify-center gap-2"
+            >
+              <SkipForward className="w-5 h-5" />
+              {t('practice.skip', language)}
+            </button>
           </div>
+
+          {/* 麦克风检测按钮 */}
+          {isListening ? (
+            <motion.button
+              onClick={stopListening}
+              className="w-full py-4 bg-red-500 rounded-2xl font-bold text-white flex items-center justify-center gap-2"
+              whileTap={{ scale: 0.98 }}
+            >
+              <MicOff className="w-5 h-5" />
+              {t('practice.stopDetection', language)}
+            </motion.button>
+          ) : (
+            <motion.button
+              onClick={startListening}
+              className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg"
+              whileTap={{ scale: 0.98 }}
+            >
+              <Mic className="w-5 h-5" />
+              {t('practice.startDetection', language)}
+            </motion.button>
+          )}
+
+          {/* 手动完成按钮 */}
+          <motion.button
+            onClick={handleManualComplete}
+            className="w-full py-4 bg-green-500 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg"
+            whileTap={{ scale: 0.98 }}
+          >
+            <Check className="w-6 h-6" />
+            完成这个音
+          </motion.button>
         </div>
       </div>
 
@@ -422,7 +617,7 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
       {/* 问喵Do 悬浮按钮 */}
       <motion.button
         onClick={() => setShowAIChat(true)}
-        className="fixed right-4 bottom-28 w-14 h-14 bg-gradient-primary rounded-full shadow-lg flex items-center justify-center text-white z-30"
+        className="fixed right-4 bottom-72 w-12 h-12 bg-gradient-primary rounded-full shadow-lg flex items-center justify-center text-white z-30"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         initial={{ scale: 0, opacity: 0 }}
@@ -430,8 +625,8 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
         transition={{ delay: 0.5, type: 'spring' }}
       >
         <div className="relative">
-          <MessageCircle className="w-6 h-6" />
-          <span className="absolute -top-1 -right-1 text-xs">😸</span>
+          <MessageCircle className="w-5 h-5" />
+          <span className="absolute -top-1 -right-1 text-[10px]">😸</span>
         </div>
       </motion.button>
 
@@ -446,7 +641,7 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
             onClick={() => setShowAIChat(false)}
           >
             <motion.div
-              className="bg-white w-full max-w-[430px] rounded-t-3xl overflow-hidden"
+              className="bg-white w-full max-w-[430px] rounded-t-3xl overflow-hidden max-h-[80vh]"
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}

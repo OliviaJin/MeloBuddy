@@ -13,9 +13,13 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
+    "fast-xml-parser": "^5.3.3",
     "framer-motion": "^12.23.26",
+    "howler": "^2.2.4",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
+    "opensheetmusicdisplay": "^1.9.3",
     "pitchy": "^4.1.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -24,6 +28,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/howler": "^2.2.12",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

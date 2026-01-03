@@ -1,0 +1,12 @@
+{
+  "name": "乐伴 MeloBuddy",
+  "short_name": "乐伴",
+  "description": "让小提琴练习变得有趣！AI智能陪练，游戏化学习体验。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F3F4F6",
+  "theme_color": "#8B5CF6",
+  "orientation": "portrait",
+  "categories": ["education", "music"],
+  "lang": "zh-CN"
+}
