@@ -104,6 +104,19 @@ function getCentsDifference(detectedFreq: number, targetNote: string): number {
   return Math.round(1200 * Math.log2(detectedFreq / targetFreq))
 }
 
+// 中值滤波器 - 去除异常值
+function medianFilter(values: number[]): number {
+  if (values.length === 0) return 0
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+}
+
+// 指数移动平均
+function exponentialMovingAverage(current: number, previous: number, alpha: number): number {
+  return alpha * current + (1 - alpha) * previous
+}
+
 export interface PitchDetectionResult {
   isListening: boolean
   currentPitch: string | null
@@ -113,9 +126,23 @@ export interface PitchDetectionResult {
   centsDiff: number // 相对于目标音符的偏差
   isCorrect: boolean
   error: string | null
+  volume: number // 音量级别 0-1
   startListening: () => Promise<void>
   stopListening: () => void
   setTargetNote: (note: string) => void
+}
+
+// 配置参数
+const CONFIG = {
+  FFT_SIZE: 8192,              // 更大的 FFT 获得更好的低频分辨率
+  MIN_CLARITY: 0.85,           // 置信度阈值 - pitchy的clarity范围是0-1
+  MIN_VOLUME: 0.005,           // 最小音量阈值 (降低以检测更轻的声音)
+  MIN_FREQUENCY: 180,          // 最小频率 (略低于G3=196Hz)
+  MAX_FREQUENCY: 2000,         // 最大频率 (小提琴高把位)
+  STABILITY_FRAMES: 3,         // 需要连续稳定的帧数
+  STABILITY_TOLERANCE: 15,     // 稳定性容差（音分）
+  SMOOTHING_ALPHA: 0.3,        // 平滑系数 (0-1, 越小越平滑)
+  HISTORY_SIZE: 5,             // 历史记录大小（用于中值滤波）
 }
 
 export function usePitchDetection(): PitchDetectionResult {
@@ -127,6 +154,7 @@ export function usePitchDetection(): PitchDetectionResult {
   const [centsDiff, setCentsDiff] = useState(0)
   const [isCorrect, setIsCorrect] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [volume, setVolume] = useState(0)
 
   // 使用 ref 存储目标音符，避免闭包问题
   const targetNoteRef = useRef<string>('')
@@ -138,6 +166,15 @@ export function usePitchDetection(): PitchDetectionResult {
   const animationFrameRef = useRef<number | null>(null)
   const detectorRef = useRef<PitchDetector<Float32Array> | null>(null)
   const isListeningRef = useRef(false)
+
+  // 高通滤波器 - 去除低频噪音
+  const highPassFilterRef = useRef<BiquadFilterNode | null>(null)
+
+  // 音高稳定性检测
+  const pitchHistoryRef = useRef<number[]>([])
+  const stableCountRef = useRef(0)
+  const lastStablePitchRef = useRef<number | null>(null)
+  const smoothedFrequencyRef = useRef<number | null>(null)
 
   // 设置目标音符
   const setTargetNote = useCallback((note: string) => {
@@ -158,6 +195,11 @@ export function usePitchDetection(): PitchDetectionResult {
       sourceRef.current = null
     }
 
+    if (highPassFilterRef.current) {
+      highPassFilterRef.current.disconnect()
+      highPassFilterRef.current = null
+    }
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop())
       streamRef.current = null
@@ -170,6 +212,10 @@ export function usePitchDetection(): PitchDetectionResult {
 
     analyserRef.current = null
     detectorRef.current = null
+    pitchHistoryRef.current = []
+    stableCountRef.current = 0
+    lastStablePitchRef.current = null
+    smoothedFrequencyRef.current = null
   }, [])
 
   // 停止监听
@@ -182,6 +228,7 @@ export function usePitchDetection(): PitchDetectionResult {
     setCents(0)
     setCentsDiff(0)
     setIsCorrect(false)
+    setVolume(0)
   }, [cleanup])
 
   // 开始监听
@@ -194,45 +241,49 @@ export function usePitchDetection(): PitchDetectionResult {
         cleanup()
       }
 
-      // 请求麦克风权限
-      console.log('Requesting microphone access...')
+      // 请求麦克风权限 - 优化音频输入设置
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
+          echoCancellation: false,  // 关闭回声消除以获得原始信号
+          noiseSuppression: false,  // 关闭噪音抑制
+          autoGainControl: false,   // 关闭自动增益以保持一致的音量
+          channelCount: 1,          // 单声道
+          sampleRate: 48000,        // 高采样率
         }
       })
-      console.log('Microphone access granted')
 
       streamRef.current = stream
 
       // 创建音频上下文
-      const audioContext = new AudioContext()
+      const audioContext = new AudioContext({ sampleRate: 48000 })
       audioContextRef.current = audioContext
-      console.log('AudioContext created, sample rate:', audioContext.sampleRate)
 
       // 确保音频上下文在运行状态
       if (audioContext.state === 'suspended') {
         await audioContext.resume()
-        console.log('AudioContext resumed')
       }
+
+      // 创建高通滤波器 - 去除 150Hz 以下的低频噪音
+      const highPassFilter = audioContext.createBiquadFilter()
+      highPassFilter.type = 'highpass'
+      highPassFilter.frequency.value = 150
+      highPassFilter.Q.value = 0.7
+      highPassFilterRef.current = highPassFilter
 
       // 创建分析器
       const analyser = audioContext.createAnalyser()
-      analyser.fftSize = 4096 // 更大的 FFT 可以获得更好的低频分辨率
-      analyser.smoothingTimeConstant = 0.1 // 降低平滑以提高响应速度
+      analyser.fftSize = CONFIG.FFT_SIZE
+      analyser.smoothingTimeConstant = 0.0 // 关闭内置平滑，我们自己做
       analyserRef.current = analyser
 
-      // 连接麦克风到分析器
+      // 连接：麦克风 -> 高通滤波器 -> 分析器
       const source = audioContext.createMediaStreamSource(stream)
       sourceRef.current = source
-      source.connect(analyser)
-      console.log('Microphone connected to analyser')
+      source.connect(highPassFilter)
+      highPassFilter.connect(analyser)
 
       // 创建音高检测器
       detectorRef.current = PitchDetector.forFloat32Array(analyser.fftSize)
-      console.log('Pitch detector created')
 
       setIsListening(true)
       isListeningRef.current = true
@@ -246,53 +297,104 @@ export function usePitchDetection(): PitchDetectionResult {
         const buffer = new Float32Array(analyserRef.current.fftSize)
         analyserRef.current.getFloatTimeDomainData(buffer)
 
-        // 计算 RMS 音量以检测是否有声音输入
+        // 计算 RMS 音量
         let sumSquares = 0
         for (let i = 0; i < buffer.length; i++) {
           sumSquares += buffer[i] * buffer[i]
         }
         const rms = Math.sqrt(sumSquares / buffer.length)
+        setVolume(Math.min(1, rms * 10)) // 归一化音量显示
 
+        // 使用 pitchy 检测音高
         const [pitch, clarity] = detectorRef.current.findPitch(
           buffer,
           audioContextRef.current.sampleRate
         )
 
-        // 降低置信度阈值以提高灵敏度，并确保有足够的声音输入
-        // 小提琴音域大约 196Hz (G3) 到 3000Hz+ (高把位)
-        if (clarity > 0.5 && pitch > 150 && pitch < 3000 && rms > 0.01) {
-          const { note, cents: detectedCents } = frequencyToNote(pitch)
+        // 检查是否有有效信号
+        const hasValidSignal =
+          rms > CONFIG.MIN_VOLUME &&
+          clarity > CONFIG.MIN_CLARITY &&
+          pitch > CONFIG.MIN_FREQUENCY &&
+          pitch < CONFIG.MAX_FREQUENCY
 
-          setFrequency(Math.round(pitch * 10) / 10)
-          setCurrentPitch(note)
-          setConfidence(Math.round(clarity * 100) / 100)
-          setCents(detectedCents)
+        if (hasValidSignal) {
+          // 添加到历史记录
+          pitchHistoryRef.current.push(pitch)
+          if (pitchHistoryRef.current.length > CONFIG.HISTORY_SIZE) {
+            pitchHistoryRef.current.shift()
+          }
 
-          // 使用 ref 获取最新的目标音符
-          const currentTargetNote = targetNoteRef.current
-          if (currentTargetNote) {
-            const diff = getCentsDifference(pitch, currentTargetNote)
-            setCentsDiff(diff)
+          // 使用中值滤波去除异常值
+          const filteredPitch = medianFilter(pitchHistoryRef.current)
 
-            // 判断是否正确 (±35 cents 容差，稍微放宽)
-            const isMatch = notesMatch(note, currentTargetNote) && Math.abs(detectedCents) <= 35
-            setIsCorrect(isMatch)
+          // 检查音高稳定性
+          if (lastStablePitchRef.current !== null) {
+            const centsDiff = Math.abs(1200 * Math.log2(filteredPitch / lastStablePitchRef.current))
+            if (centsDiff < CONFIG.STABILITY_TOLERANCE) {
+              stableCountRef.current++
+            } else {
+              stableCountRef.current = 1
+              lastStablePitchRef.current = filteredPitch
+            }
+          } else {
+            stableCountRef.current = 1
+            lastStablePitchRef.current = filteredPitch
+          }
+
+          // 只有当音高稳定时才更新显示
+          if (stableCountRef.current >= CONFIG.STABILITY_FRAMES) {
+            // 应用指数移动平均平滑
+            if (smoothedFrequencyRef.current === null) {
+              smoothedFrequencyRef.current = filteredPitch
+            } else {
+              smoothedFrequencyRef.current = exponentialMovingAverage(
+                filteredPitch,
+                smoothedFrequencyRef.current,
+                CONFIG.SMOOTHING_ALPHA
+              )
+            }
+
+            const smoothedPitch = smoothedFrequencyRef.current
+            const { note, cents: detectedCents } = frequencyToNote(smoothedPitch)
+
+            setFrequency(Math.round(smoothedPitch * 10) / 10)
+            setCurrentPitch(note)
+            setConfidence(Math.round(clarity * 100) / 100)
+            setCents(detectedCents)
+
+            // 使用 ref 获取最新的目标音符
+            const currentTargetNote = targetNoteRef.current
+            if (currentTargetNote) {
+              const diff = getCentsDifference(smoothedPitch, currentTargetNote)
+              setCentsDiff(diff)
+
+              // 判断是否正确 (±40 cents 容差)
+              const isMatch = notesMatch(note, currentTargetNote) && Math.abs(detectedCents) <= 40
+              setIsCorrect(isMatch)
+            }
           }
         } else {
-          // 信号太弱或不可靠
-          setFrequency(null)
-          setCurrentPitch(null)
+          // 信号太弱或不可靠 - 重置稳定性计数器但不立即清除显示
+          if (rms < CONFIG.MIN_VOLUME * 0.5) {
+            // 音量非常低时才清除
+            setFrequency(null)
+            setCurrentPitch(null)
+            setCents(0)
+            setCentsDiff(0)
+            setIsCorrect(false)
+            pitchHistoryRef.current = []
+            stableCountRef.current = 0
+            lastStablePitchRef.current = null
+            smoothedFrequencyRef.current = null
+          }
           setConfidence(Math.round(clarity * 100) / 100)
-          setCents(0)
-          setCentsDiff(0)
-          setIsCorrect(false)
         }
 
         animationFrameRef.current = requestAnimationFrame(detectPitch)
       }
 
       detectPitch()
-      console.log('Pitch detection started')
 
     } catch (err) {
       console.error('Pitch detection error:', err)
@@ -325,6 +427,7 @@ export function usePitchDetection(): PitchDetectionResult {
     centsDiff,
     isCorrect,
     error,
+    volume,
     startListening,
     stopListening,
     setTargetNote,

@@ -688,7 +688,7 @@ export function FollowMode({ song, onComplete, onBack }: FollowModeProps) {
               <AIChatPage
                 isModal={true}
                 context={{
-                  songName: song.name,
+                  songName: song.title,
                   composer: song.composer,
                   difficulty: song.difficulty,
                   category: song.category,

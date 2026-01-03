@@ -368,8 +368,7 @@ export function AssessMode({ song, onComplete, onBack }: AssessModeProps) {
       maxCombo,
     }
 
-    // 可以保存到 localStorage 或发送到服务器
-    console.log('Assessment data:', assessmentData)
+    // TODO: 可以保存到 localStorage 或发送到服务器
 
     onComplete({
       score,
@@ -796,7 +795,7 @@ export function AssessMode({ song, onComplete, onBack }: AssessModeProps) {
               <AIChatPage
                 isModal={true}
                 context={{
-                  songName: song.name,
+                  songName: song.title,
                   composer: song.composer,
                   difficulty: song.difficulty,
                   category: song.category,

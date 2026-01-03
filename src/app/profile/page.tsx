@@ -68,7 +68,7 @@ const achievements: Achievement[] = [
     description: '完成全部音阶练习',
     icon: '🎻',
     check: (s) => {
-      const scaleSongs = songs.filter((song) => song.category === '音阶')
+      const scaleSongs = songs.filter((song) => song.category === 'scale')
       return scaleSongs.every((song) => s.completedSongs.includes(song.id))
     },
   },

@@ -57,7 +57,7 @@ export function ModeSelector({ song, onSelectMode, onBack }: ModeSelectorProps) 
           </button>
 
           <div className="text-center flex-1 mx-4">
-            <h1 className="font-bold text-gray-800 truncate">{song.name}</h1>
+            <h1 className="font-bold text-gray-800 truncate">{song.title}</h1>
             <p className="text-xs text-gray-500">{song.composer}</p>
           </div>
 
@@ -143,7 +143,7 @@ export function ModeSelector({ song, onSelectMode, onBack }: ModeSelectorProps) 
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-500">{song.category}</p>
-              <p className="font-medium text-gray-800">{song.notes.length} {t('practice.notes', language)}</p>
+              <p className="font-medium text-gray-800">{song.duration}s</p>
             </div>
             <div className="flex">
               {[1, 2, 3, 4, 5].map((star) => (

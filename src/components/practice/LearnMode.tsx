@@ -120,7 +120,7 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
     if (useMusicXML && parsedNotes.length > 0) {
       return parsedNotes[currentIndex]
     }
-    return song.notes[currentIndex]
+    return song.notes?.[currentIndex]
   }, [useMusicXML, parsedNotes, song.notes, currentIndex])
 
   // 获取总音符数
@@ -128,7 +128,7 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
     if (useMusicXML && parsedNotes.length > 0) {
       return parsedNotes.length
     }
-    return song.notes.length
+    return song.notes?.length || 0
   }, [useMusicXML, parsedNotes, song.notes])
 
   // 更新目标音符
@@ -335,7 +335,7 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
           </button>
           <div className="text-center flex-1 mx-4">
             <h1 className="font-bold text-gray-800">{t('practice.mode.learn', language)}</h1>
-            <p className="text-xs text-gray-500">{song.name}</p>
+            <p className="text-xs text-gray-500">{song.title}</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600">
@@ -374,13 +374,13 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
             />
             {notationMode === 'staff' ? (
               <StaffDisplay
-                notes={song.notes}
+                notes={song.notes || []}
                 currentIndex={currentIndex}
                 completedIndices={new Set()}
               />
             ) : (
               <NumberedDisplay
-                notes={song.notes}
+                notes={song.notes || []}
                 currentIndex={currentIndex}
                 completedIndices={new Set()}
               />
@@ -660,7 +660,7 @@ export function LearnMode({ song, onComplete, onBack }: LearnModeProps) {
               <AIChatPage
                 isModal={true}
                 context={{
-                  songName: song.name,
+                  songName: song.title,
                   composer: song.composer,
                   difficulty: song.difficulty,
                   category: song.category,

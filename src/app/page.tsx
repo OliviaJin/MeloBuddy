@@ -109,7 +109,7 @@ export default function HomePage() {
   // 推荐曲目（未完成的最简单曲目）
   const recommendedSong = useMemo(() => {
     return songs
-      .filter((song) => !completedSongs.includes(song.id) && song.requiredLevel <= level)
+      .filter((song) => !completedSongs.includes(song.id) && song.difficulty <= Math.ceil(level / 4) + 1)
       .sort((a, b) => a.difficulty - b.difficulty)[0] || songs[0]
   }, [completedSongs, level])
 
@@ -210,7 +210,7 @@ export default function HomePage() {
                 <p className="text-xs text-primary-600 font-medium mb-0.5">
                   {hasPracticed ? t('home.continuePractice', language) : t('home.startPractice', language)}
                 </p>
-                <h3 className="font-bold text-gray-800">{recommendedSong.name}</h3>
+                <h3 className="font-bold text-gray-800">{recommendedSong.title}</h3>
                 <p className="text-sm text-gray-500">{recommendedSong.composer}</p>
               </div>
 
@@ -346,9 +346,9 @@ export default function HomePage() {
                   <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center gap-3 btn-press">
                     <div
                       className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                        song!.category === '音阶'
+                        song!.category === 'scale'
                           ? 'bg-pastel-blue'
-                          : song!.category === '练习曲'
+                          : song!.category === 'etude'
                           ? 'bg-pastel-yellow'
                           : 'bg-pastel-pink'
                       }`}
@@ -357,7 +357,7 @@ export default function HomePage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-gray-800 text-sm truncate">
-                        {song!.name}
+                        {song!.title}
                       </h3>
                       <p className="text-xs text-gray-500">{song!.composer}</p>
                     </div>

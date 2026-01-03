@@ -85,7 +85,6 @@ export function clearScoreCache(): void {
       localStorage.removeItem(key)
     })
 
-    console.log(`Cleared ${keysToRemove.length} score cache entries`)
   } catch (error) {
     console.warn('Failed to clear score cache:', error)
   }

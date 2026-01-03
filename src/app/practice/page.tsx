@@ -10,10 +10,10 @@ export default function PracticePage() {
   const { completedSongs, level } = useGameStore()
 
   useEffect(() => {
-    // 找到一个推荐的曲目（未完成的、等级足够的）
+    // 找到一个推荐的曲目（未完成的、难度适合的）
     const availableSongs = songs.filter(
       (song) =>
-        !completedSongs.includes(song.id) && level >= song.requiredLevel
+        !completedSongs.includes(song.id) && song.difficulty <= Math.ceil(level / 4) + 1
     )
 
     if (availableSongs.length > 0) {

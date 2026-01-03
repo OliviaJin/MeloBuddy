@@ -48,12 +48,13 @@ export function getBasePitch(pitch: string): string {
 interface PracticeHeaderProps {
   song: Song
   currentIndex: number
+  totalNotes: number
   onBack: () => void
   language: Language
 }
 
-export function PracticeHeader({ song, currentIndex, onBack, language }: PracticeHeaderProps) {
-  const progress = Math.round(((currentIndex + 1) / song.notes.length) * 100)
+export function PracticeHeader({ song, currentIndex, totalNotes, onBack, language }: PracticeHeaderProps) {
+  const progress = totalNotes > 0 ? Math.round(((currentIndex + 1) / totalNotes) * 100) : 0
 
   return (
     <div className="sticky top-0 z-20 bg-white border-b border-gray-100">
@@ -66,9 +67,9 @@ export function PracticeHeader({ song, currentIndex, onBack, language }: Practic
         </button>
 
         <div className="text-center flex-1 mx-4">
-          <h1 className="font-bold text-gray-800 truncate">{song.name}</h1>
+          <h1 className="font-bold text-gray-800 truncate">{song.title}</h1>
           <p className="text-xs text-gray-500">
-            {currentIndex + 1} / {song.notes.length} {t('practice.notes', language)}
+            {currentIndex + 1} / {totalNotes} {t('practice.notes', language)}
           </p>
         </div>
 
@@ -529,7 +530,7 @@ export function PracticeComplete({
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
         >
-          {song.name}
+          {song.title}
         </motion.p>
 
         <motion.div

@@ -76,6 +76,7 @@ export default function Tuner({ compact = false }: TunerProps) {
     frequency,
     confidence,
     error,
+    volume,
     startListening,
     stopListening,
   } = usePitchDetection()
@@ -245,6 +246,28 @@ export default function Tuner({ compact = false }: TunerProps) {
       <h2 className="text-lg font-bold text-gray-800 text-center mb-6">
         调音器
       </h2>
+
+      {/* 音量指示器 */}
+      {isListening && (
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Volume2 className="w-4 h-4 text-gray-400" />
+            <span className="text-xs text-gray-400">音量</span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <motion.div
+              className={`h-full rounded-full ${
+                volume > 0.5 ? 'bg-green-500' : volume > 0.2 ? 'bg-yellow-500' : 'bg-red-400'
+              }`}
+              animate={{ width: `${Math.min(100, volume * 100)}%` }}
+              transition={{ duration: 0.1 }}
+            />
+          </div>
+          {volume < 0.1 && (
+            <p className="text-xs text-orange-500 mt-1">音量太低，请靠近麦克风</p>
+          )}
+        </div>
+      )}
 
       {/* 偏差指示器 */}
       <div className="mb-6">
