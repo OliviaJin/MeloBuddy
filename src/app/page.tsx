@@ -4,7 +4,7 @@ import { useGameStore } from '@/stores'
 import { useLanguageStore } from '@/stores/useLanguageStore'
 import { Language, t } from '@/i18n/translations'
 import { songs, getSongById } from '@/data'
-import { Music, Play, Flame, Star, ChevronRight } from 'lucide-react'
+import { Music, Play, Flame, Star, ChevronRight, Music2, Timer } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useMemo } from 'react'
@@ -232,6 +232,38 @@ export default function HomePage() {
                   +{recommendedSong.xpReward} XP
                 </span>
               </div>
+            </div>
+          </motion.div>
+        </Link>
+      </motion.div>
+
+      {/* 练习工具快捷入口 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15 }}
+      >
+        <Link href="/tools">
+          <motion.div
+            className="bg-white rounded-2xl p-4 shadow-cute border border-gray-100 btn-press"
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex gap-2">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <Music2 className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                  <Timer className="w-5 h-5 text-amber-600" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-gray-800">{t('tools.title', language)}</h3>
+                <p className="text-sm text-gray-500">
+                  {t('tools.tuner', language)} · {t('tools.metronome', language)}
+                </p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400" />
             </div>
           </motion.div>
         </Link>

@@ -192,6 +192,19 @@ export const translations: Record<Language, Record<string, string>> = {
     'profile.achievement.all-scales': '音阶大师',
     'profile.achievement.all-scales.desc': '完成全部音阶练习',
 
+    // 工具
+    'tools.title': '练习工具',
+    'tools.tuner': '调音器',
+    'tools.metronome': '节拍器',
+    'tools.tunerTips': '调音小技巧',
+    'tools.tunerTip1': '调音时保持安静的环境，确保麦克风能清晰采集声音',
+    'tools.tunerTip2': '小提琴四根弦从低到高：G-D-A-E，通常先调A弦',
+    'tools.tunerTip3': '点击弦名可播放标准音作为参考',
+    'tools.metronomeTips': '节拍器使用技巧',
+    'tools.metronomeTip1': '初学者建议从60-80 BPM的慢速开始练习',
+    'tools.metronomeTip2': '逐渐提高速度，每次增加5-10 BPM',
+    'tools.metronomeTip3': '练习时注意让每个音符都落在节拍点上',
+
     // 成就
     'achievements.title': '成就',
     'achievements.subtitle': '记录你的每一个里程碑',
@@ -397,6 +410,19 @@ export const translations: Record<Language, Record<string, string>> = {
     'profile.achievement.first-three-star.desc': '以100%完成度完成曲目',
     'profile.achievement.all-scales': '音階大師',
     'profile.achievement.all-scales.desc': '完成全部音階練習',
+
+    // 工具
+    'tools.title': '練習工具',
+    'tools.tuner': '調音器',
+    'tools.metronome': '節拍器',
+    'tools.tunerTips': '調音小技巧',
+    'tools.tunerTip1': '調音時保持安靜的環境，確保麥克風能清晰採集聲音',
+    'tools.tunerTip2': '小提琴四根弦從低到高：G-D-A-E，通常先調A弦',
+    'tools.tunerTip3': '點擊弦名可播放標準音作為參考',
+    'tools.metronomeTips': '節拍器使用技巧',
+    'tools.metronomeTip1': '初學者建議從60-80 BPM的慢速開始練習',
+    'tools.metronomeTip2': '逐漸提高速度，每次增加5-10 BPM',
+    'tools.metronomeTip3': '練習時注意讓每個音符都落在節拍點上',
 
     // 成就
     'achievements.title': '成就',
@@ -604,6 +630,19 @@ export const translations: Record<Language, Record<string, string>> = {
     'profile.achievement.all-scales': 'Scale Master',
     'profile.achievement.all-scales.desc': 'Complete all scale exercises',
 
+    // Tools
+    'tools.title': 'Practice Tools',
+    'tools.tuner': 'Tuner',
+    'tools.metronome': 'Metronome',
+    'tools.tunerTips': 'Tuning Tips',
+    'tools.tunerTip1': 'Keep the environment quiet for accurate detection',
+    'tools.tunerTip2': 'Violin strings from low to high: G-D-A-E, usually tune A first',
+    'tools.tunerTip3': 'Tap a string name to play the reference tone',
+    'tools.metronomeTips': 'Metronome Tips',
+    'tools.metronomeTip1': 'Beginners should start at 60-80 BPM',
+    'tools.metronomeTip2': 'Gradually increase speed by 5-10 BPM at a time',
+    'tools.metronomeTip3': 'Make sure each note lands on the beat',
+
     // Achievements
     'achievements.title': 'Achievements',
     'achievements.subtitle': 'Track your milestones',
@@ -809,6 +848,19 @@ export const translations: Record<Language, Record<string, string>> = {
     'profile.achievement.first-three-star.desc': '100% 완성도로 곡 완료하기',
     'profile.achievement.all-scales': '스케일 마스터',
     'profile.achievement.all-scales.desc': '모든 스케일 연습 완료하기',
+
+    // 도구
+    'tools.title': '연습 도구',
+    'tools.tuner': '튜너',
+    'tools.metronome': '메트로놈',
+    'tools.tunerTips': '조율 팁',
+    'tools.tunerTip1': '정확한 감지를 위해 조용한 환경을 유지하세요',
+    'tools.tunerTip2': '바이올린 현은 낮은 음부터: G-D-A-E, 보통 A현부터 조율',
+    'tools.tunerTip3': '현 이름을 탭하면 기준음이 재생됩니다',
+    'tools.metronomeTips': '메트로놈 팁',
+    'tools.metronomeTip1': '초보자는 60-80 BPM으로 시작하세요',
+    'tools.metronomeTip2': '속도를 점진적으로 5-10 BPM씩 올리세요',
+    'tools.metronomeTip3': '각 음표가 박자에 맞도록 연습하세요',
 
     // 업적
     'achievements.title': '업적',
@@ -1016,6 +1068,19 @@ export const translations: Record<Language, Record<string, string>> = {
     'profile.achievement.all-scales': 'スケールマスター',
     'profile.achievement.all-scales.desc': '全てのスケール練習を完了する',
 
+    // ツール
+    'tools.title': '練習ツール',
+    'tools.tuner': 'チューナー',
+    'tools.metronome': 'メトロノーム',
+    'tools.tunerTips': 'チューニングのヒント',
+    'tools.tunerTip1': '正確な検出のために静かな環境を保ってください',
+    'tools.tunerTip2': 'バイオリンの弦は低い方から: G-D-A-E、通常A弦から調弦',
+    'tools.tunerTip3': '弦の名前をタップすると基準音が再生されます',
+    'tools.metronomeTips': 'メトロノームのヒント',
+    'tools.metronomeTip1': '初心者は60-80 BPMから始めましょう',
+    'tools.metronomeTip2': '徐々に5-10 BPMずつ速度を上げましょう',
+    'tools.metronomeTip3': '各音符がビートに合うように練習しましょう',
+
     // 実績
     'achievements.title': '実績',
     'achievements.subtitle': 'あなたのマイルストーンを記録',
@@ -1221,6 +1286,19 @@ export const translations: Record<Language, Record<string, string>> = {
     'profile.achievement.first-three-star.desc': 'Completa una pieza al 100%',
     'profile.achievement.all-scales': 'Maestro de Escalas',
     'profile.achievement.all-scales.desc': 'Completa todos los ejercicios de escalas',
+
+    // Herramientas
+    'tools.title': 'Herramientas',
+    'tools.tuner': 'Afinador',
+    'tools.metronome': 'Metrónomo',
+    'tools.tunerTips': 'Consejos de afinación',
+    'tools.tunerTip1': 'Mantén el ambiente silencioso para una detección precisa',
+    'tools.tunerTip2': 'Cuerdas del violín de grave a agudo: G-D-A-E, usualmente afinar A primero',
+    'tools.tunerTip3': 'Toca el nombre de la cuerda para reproducir el tono de referencia',
+    'tools.metronomeTips': 'Consejos del metrónomo',
+    'tools.metronomeTip1': 'Los principiantes deben comenzar con 60-80 BPM',
+    'tools.metronomeTip2': 'Aumenta la velocidad gradualmente 5-10 BPM cada vez',
+    'tools.metronomeTip3': 'Asegúrate de que cada nota caiga en el tiempo',
 
     // Logros
     'achievements.title': 'Logros',
